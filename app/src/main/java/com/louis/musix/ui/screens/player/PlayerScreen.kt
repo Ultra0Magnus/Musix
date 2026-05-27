@@ -15,7 +15,9 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.outlined.ArrowBackIosNew
+import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.material.icons.outlined.Pause
 import androidx.compose.material.icons.outlined.PlayArrow
 import androidx.compose.material.icons.outlined.SkipNext
@@ -59,7 +61,7 @@ fun PlayerScreen(
     ) {
         Spacer(Modifier.height(16.dp))
 
-        // ── Bouton retour ─────────────────────────────────────────────────────
+        // Bouton retour
         Row(modifier = Modifier.fillMaxWidth()) {
             IconButton(onClick = onBack) {
                 Icon(
@@ -72,7 +74,7 @@ fun PlayerScreen(
 
         Spacer(Modifier.height(24.dp))
 
-        // ── Artwork ───────────────────────────────────────────────────────────
+        // Artwork
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -89,7 +91,6 @@ fun PlayerScreen(
                     modifier = Modifier.fillMaxSize(),
                 )
             }
-            // Spinner pendant le chargement audio
             if (state.isLoadingAudio) {
                 Box(
                     modifier = Modifier
@@ -102,30 +103,47 @@ fun PlayerScreen(
             }
         }
 
-        Spacer(Modifier.height(32.dp))
+        Spacer(Modifier.height(24.dp))
 
-        // ── Titre + artiste ───────────────────────────────────────────────────
-        Text(
-            text = state.song?.title ?: "Chargement…",
-            style = MaterialTheme.typography.headlineMedium,
-            color = MaterialTheme.colorScheme.onBackground,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            textAlign = TextAlign.Center,
+        // Titre + artiste + bouton favori
+        Row(
             modifier = Modifier.fillMaxWidth(),
-        )
-        Spacer(Modifier.height(4.dp))
-        Text(
-            text = state.song?.artist ?: "",
-            style = MaterialTheme.typography.bodyLarge,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            textAlign = TextAlign.Center,
-            modifier = Modifier.fillMaxWidth(),
-        )
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = state.song?.title ?: "Chargement...",
+                    style = MaterialTheme.typography.headlineSmall,
+                    color = MaterialTheme.colorScheme.onBackground,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    text = state.song?.artist ?: "",
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+            // Bouton favori
+            IconButton(
+                onClick = viewModel::toggleFavorite,
+                enabled = state.song != null,
+            ) {
+                Icon(
+                    imageVector = if (state.isFavorite) Icons.Filled.Favorite
+                                  else Icons.Outlined.FavoriteBorder,
+                    contentDescription = if (state.isFavorite) "Retirer des favoris"
+                                         else "Ajouter aux favoris",
+                    tint = if (state.isFavorite) MaterialTheme.colorScheme.primary
+                           else MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(28.dp),
+                )
+            }
+        }
 
-        // Message d'erreur
         if (state.error != null) {
             Spacer(Modifier.height(8.dp))
             Text(
@@ -136,9 +154,9 @@ fun PlayerScreen(
             )
         }
 
-        Spacer(Modifier.height(24.dp))
+        Spacer(Modifier.height(16.dp))
 
-        // ── Slider de progression ─────────────────────────────────────────────
+        // Slider de progression
         val progress = if (state.durationMs > 0) {
             state.currentPositionMs.toFloat() / state.durationMs.toFloat()
         } else 0f
@@ -156,7 +174,6 @@ fun PlayerScreen(
             ),
         )
 
-        // Temps écoulé / durée totale
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
@@ -175,23 +192,21 @@ fun PlayerScreen(
 
         Spacer(Modifier.height(16.dp))
 
-        // ── Contrôles de lecture ──────────────────────────────────────────────
+        // Controles de lecture
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceEvenly,
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            // Précédent (désactivé Phase 3 — activé Phase 5 avec file d'attente)
-            IconButton(onClick = {}, enabled = false) {
+            IconButton(onClick = {}) {
                 Icon(
                     Icons.Outlined.SkipPrevious,
-                    contentDescription = "Précédent",
+                    contentDescription = "Precedent",
                     modifier = Modifier.size(36.dp),
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
+                    tint = MaterialTheme.colorScheme.onSurface,
                 )
             }
 
-            // Bouton Play / Pause (gros, cerclé)
             IconButton(
                 onClick = viewModel::togglePlayPause,
                 modifier = Modifier
@@ -207,13 +222,12 @@ fun PlayerScreen(
                 )
             }
 
-            // Suivant (désactivé Phase 3)
-            IconButton(onClick = {}, enabled = false) {
+            IconButton(onClick = {}) {
                 Icon(
                     Icons.Outlined.SkipNext,
                     contentDescription = "Suivant",
                     modifier = Modifier.size(36.dp),
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
+                    tint = MaterialTheme.colorScheme.onSurface,
                 )
             }
         }

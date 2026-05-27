@@ -1,28 +1,41 @@
 package com.louis.musix.di
 
 import com.louis.musix.data.SelectedSongHolder
+import com.louis.musix.data.local.MusixDatabase
 import com.louis.musix.data.newpipe.YouTubeRepository
+import com.louis.musix.data.repo.LibraryRepository
 import com.louis.musix.player.PlayerController
+import com.louis.musix.ui.screens.library.LibraryViewModel
 import com.louis.musix.ui.screens.player.PlayerViewModel
+import com.louis.musix.ui.screens.playlist.PlaylistDetailViewModel
 import com.louis.musix.ui.screens.search.SearchViewModel
 import org.koin.android.ext.koin.androidContext
 import org.koin.androidx.viewmodel.dsl.viewModel
 import org.koin.dsl.module
 
 val appModule = module {
-    // Holders / état partagé
+
+    // ─── Holders ──────────────────────────────────────────────────────────────
     single { SelectedSongHolder() }
 
-    // Repositories
+    // ─── Repositories ─────────────────────────────────────────────────────────
     single { YouTubeRepository() }
 
-    // Phase 4 — lecteur background
+    // ─── Base de donnees Room ─────────────────────────────────────────────────
+    single { MusixDatabase.create(androidContext()) }
+    single { get<MusixDatabase>().songDao() }
+    single { get<MusixDatabase>().favoriteDao() }
+    single { get<MusixDatabase>().historyDao() }
+    single { get<MusixDatabase>().playlistDao() }
+    single { LibraryRepository(get(), get(), get(), get()) }
+
+    // ─── Lecteur background ───────────────────────────────────────────────────
     single { PlayerController(androidContext()) }
 
-    // ViewModels
+    // ─── ViewModels ───────────────────────────────────────────────────────────
     viewModel { SearchViewModel(get()) }
-    // get() #1 = YouTubeRepository, get() #2 = SelectedSongHolder, get() #3 = PlayerController
-    viewModel { PlayerViewModel(get(), get(), get()) }
-
-    // Phase 5 : single<MusixDatabase> { ... } / single<LibraryRepository> { ... }
+    viewModel { PlayerViewModel(get(), get(), get(), get()) }
+    viewModel { LibraryViewModel(get()) }
+    // PlaylistDetailViewModel prend l'id en parametre (koinViewModel { parametersOf(id) })
+    viewModel { params -> PlaylistDetailViewModel(params.get(), get()) }
 }

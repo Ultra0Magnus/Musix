@@ -10,9 +10,12 @@ sealed class Routes(val route: String) {
     data object Home    : Routes("home")
     data object Search  : Routes("search")
     data object Library : Routes("library")
-    data object Player  : Routes("player")  // Phase 3
+    data object Player  : Routes("player")
 
-    // Phase 5+ : data class PlaylistDetail(val id: Long) : Routes("playlist/$id") { companion object { const val PATTERN = "playlist/{id}" } }
+    // Phase 5 — detail d'une playlist
+    data object PlaylistDetail : Routes("playlist/{playlistId}") {
+        fun createRoute(playlistId: Long) = "playlist/$playlistId"
+    }
 }
 
 data class BottomNavItem(
@@ -24,5 +27,5 @@ data class BottomNavItem(
 val bottomNavItems = listOf(
     BottomNavItem(Routes.Home.route,    "Accueil",      Icons.Outlined.Home),
     BottomNavItem(Routes.Search.route,  "Recherche",    Icons.Outlined.Search),
-    BottomNavItem(Routes.Library.route, "Bibliothèque", Icons.Outlined.LibraryMusic),
+    BottomNavItem(Routes.Library.route, "Bibliotheque", Icons.Outlined.LibraryMusic),
 )

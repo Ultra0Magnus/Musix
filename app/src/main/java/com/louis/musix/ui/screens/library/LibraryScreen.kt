@@ -1,12 +1,300 @@
 package com.louis.musix.ui.screens.library
 
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Add
+import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.material.icons.outlined.PlaylistPlay
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SwipeToDismissBox
+import androidx.compose.material3.SwipeToDismissBoxValue
+import androidx.compose.material3.Tab
+import androidx.compose.material3.TabRow
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
-import com.louis.musix.ui.components.PlaceholderScreen
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.louis.musix.domain.model.Playlist
+import com.louis.musix.domain.model.Song
+import com.louis.musix.ui.components.SongRow
+import org.koin.androidx.compose.koinViewModel
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun LibraryScreen(
+    onPlaylistClick: (Long) -> Unit = {},
+    onSongClick: (Song) -> Unit = {},
+) {
+    val viewModel: LibraryViewModel = koinViewModel()
+    val playlists by viewModel.playlists.collectAsStateWithLifecycle()
+    val favorites by viewModel.favorites.collectAsStateWithLifecycle()
+    val history by viewModel.history.collectAsStateWithLifecycle()
+
+    var selectedTab by remember { mutableIntStateOf(0) }
+    val tabs = listOf("Playlists", "Favoris", "Historique")
+
+    // Dialog creation de playlist
+    var showCreateDialog by remember { mutableStateOf(false) }
+    var newPlaylistName by remember { mutableStateOf("") }
+
+    if (showCreateDialog) {
+        AlertDialog(
+            onDismissRequest = { showCreateDialog = false; newPlaylistName = "" },
+            title = { Text("Nouvelle playlist") },
+            text = {
+                OutlinedTextField(
+                    value = newPlaylistName,
+                    onValueChange = { newPlaylistName = it },
+                    label = { Text("Nom de la playlist") },
+                    singleLine = true,
+                )
+            },
+            confirmButton = {
+                Button(onClick = {
+                    viewModel.createPlaylist(newPlaylistName)
+                    showCreateDialog = false
+                    newPlaylistName = ""
+                }) { Text("Creer") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showCreateDialog = false; newPlaylistName = "" }) {
+                    Text("Annuler")
+                }
+            },
+        )
+    }
+
+    Scaffold(
+        floatingActionButton = {
+            if (selectedTab == 0) {
+                FloatingActionButton(
+                    onClick = { showCreateDialog = true },
+                    containerColor = MaterialTheme.colorScheme.primary,
+                ) {
+                    Icon(Icons.Outlined.Add, contentDescription = "Nouvelle playlist")
+                }
+            }
+        },
+    ) { innerPadding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding),
+        ) {
+            TabRow(selectedTabIndex = selectedTab) {
+                tabs.forEachIndexed { index, title ->
+                    Tab(
+                        selected = selectedTab == index,
+                        onClick = { selectedTab = index },
+                        text = { Text(title) },
+                    )
+                }
+            }
+
+            when (selectedTab) {
+                0 -> PlaylistsTab(playlists, onPlaylistClick, viewModel::deletePlaylist)
+                1 -> FavoritesTab(favorites, onSongClick, viewModel::removeFavorite)
+                2 -> HistoryTab(history, onSongClick, viewModel::clearHistory)
+            }
+        }
+    }
+}
+
+// ─── Onglet Playlists ──────────────────────────────────────────────────────────
 
 @Composable
-fun LibraryScreen() {
-    PlaceholderScreen(
-        title = "Bibliothèque",
-        subtitle = "Phase 5 : playlists, favoris et historique"
-    )
+private fun PlaylistsTab(
+    playlists: List<Playlist>,
+    onPlaylistClick: (Long) -> Unit,
+    onDelete: (Long) -> Unit,
+) {
+    if (playlists.isEmpty()) {
+        EmptyState("Aucune playlist\nAppuie sur + pour en creer une")
+    } else {
+        LazyColumn(
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(bottom = 88.dp),
+        ) {
+            items(playlists, key = { it.id }) { playlist ->
+                PlaylistRow(playlist, onClick = { onPlaylistClick(playlist.id) }, onDelete = { onDelete(playlist.id) })
+                HorizontalDivider(
+                    modifier = Modifier.padding(horizontal = 16.dp),
+                    color = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f),
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun PlaylistRow(
+    playlist: Playlist,
+    onClick: () -> Unit,
+    onDelete: () -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        Icon(
+            Icons.Outlined.PlaylistPlay,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.size(40.dp),
+        )
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .padding(end = 4.dp),
+        ) {
+            Text(
+                text = playlist.name,
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurface,
+            )
+            Text(
+                text = "${playlist.songCount} morceau${if (playlist.songCount > 1) "x" else ""}",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        TextButton(onClick = onClick) { Text("Ouvrir") }
+        IconButton(onClick = onDelete) {
+            Icon(Icons.Outlined.Delete, contentDescription = "Supprimer",
+                tint = MaterialTheme.colorScheme.error)
+        }
+    }
+}
+
+// ─── Onglet Favoris ────────────────────────────────────────────────────────────
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun FavoritesTab(
+    favorites: List<Song>,
+    onSongClick: (Song) -> Unit,
+    onRemove: (Song) -> Unit,
+) {
+    if (favorites.isEmpty()) {
+        EmptyState("Aucun favori\nAppuie sur le coeur dans le lecteur")
+    } else {
+        LazyColumn(modifier = Modifier.fillMaxSize()) {
+            items(favorites, key = { it.id }) { song ->
+                val dismissState = rememberSwipeToDismissBoxState(
+                    confirmValueChange = { value ->
+                        if (value == SwipeToDismissBoxValue.EndToStart) {
+                            onRemove(song)
+                            true
+                        } else false
+                    }
+                )
+                SwipeToDismissBox(
+                    state = dismissState,
+                    backgroundContent = {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(horizontal = 20.dp),
+                            contentAlignment = Alignment.CenterEnd,
+                        ) {
+                            Icon(Icons.Outlined.Delete, contentDescription = null,
+                                tint = MaterialTheme.colorScheme.error)
+                        }
+                    },
+                    enableDismissFromStartToEnd = false,
+                ) {
+                    SongRow(song = song, onClick = onSongClick)
+                }
+                HorizontalDivider(
+                    modifier = Modifier.padding(horizontal = 16.dp),
+                    color = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f),
+                )
+            }
+        }
+    }
+}
+
+// ─── Onglet Historique ────────────────────────────────────────────────────────
+
+@Composable
+private fun HistoryTab(
+    history: List<Song>,
+    onSongClick: (Song) -> Unit,
+    onClearAll: () -> Unit,
+) {
+    if (history.isEmpty()) {
+        EmptyState("Aucun historique\nLance une chanson pour commencer")
+    } else {
+        Column(modifier = Modifier.fillMaxSize()) {
+            // Bouton "Tout effacer"
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                horizontalArrangement = Arrangement.End,
+            ) {
+                TextButton(onClick = onClearAll) {
+                    Icon(Icons.Outlined.Delete, contentDescription = null,
+                        modifier = Modifier.size(16.dp))
+                    Spacer(Modifier.size(4.dp))
+                    Text("Tout effacer")
+                }
+            }
+            LazyColumn(modifier = Modifier.fillMaxSize()) {
+                items(history, key = { it.id }) { song ->
+                    SongRow(song = song, onClick = onSongClick)
+                    HorizontalDivider(
+                        modifier = Modifier.padding(horizontal = 16.dp),
+                        color = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f),
+                    )
+                }
+            }
+        }
+    }
+}
+
+// ─── Etat vide ────────────────────────────────────────────────────────────────
+
+@Composable
+private fun EmptyState(text: String) {
+    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+        Text(
+            text = text,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
 }

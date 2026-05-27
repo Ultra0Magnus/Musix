@@ -10,6 +10,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.MoreVert
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -24,25 +28,27 @@ import com.louis.musix.domain.model.Song
 import com.louis.musix.domain.model.formatDuration
 
 /**
- * Ligne représentant un morceau dans une liste (résultats de recherche, playlist…).
+ * Ligne representant un morceau dans une liste.
  *
- * @param song      Le morceau à afficher.
- * @param onClick   Appelé quand l'utilisateur tape sur la ligne.
+ * @param song          Le morceau a afficher.
+ * @param onClick       Appele quand l'utilisateur tape sur la ligne.
+ * @param onMoreClick   Si non-null, affiche un bouton "..." en fin de ligne.
  */
 @Composable
 fun SongRow(
     song: Song,
     onClick: (Song) -> Unit,
     modifier: Modifier = Modifier,
+    onMoreClick: ((Song) -> Unit)? = null,
 ) {
     Row(
         modifier = modifier
             .fillMaxWidth()
             .clickable { onClick(song) }
-            .padding(horizontal = 16.dp, vertical = 8.dp),
+            .padding(start = 16.dp, end = if (onMoreClick != null) 4.dp else 16.dp, top = 8.dp, bottom = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        // Miniature YouTube
+        // Miniature
         AsyncImage(
             model = song.thumbnailUrl,
             contentDescription = "Couverture de ${song.title}",
@@ -73,15 +79,26 @@ fun SongRow(
             )
         }
 
-        // Durée
+        // Duree
         val duration = formatDuration(song.durationSeconds)
-        if (duration.isNotEmpty()) {
+        if (duration.isNotEmpty() && onMoreClick == null) {
             Spacer(modifier = Modifier.width(8.dp))
             Text(
                 text = duration,
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
+        }
+
+        // Bouton options "..."
+        if (onMoreClick != null) {
+            IconButton(onClick = { onMoreClick(song) }) {
+                Icon(
+                    Icons.Outlined.MoreVert,
+                    contentDescription = "Options",
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
         }
     }
 }
