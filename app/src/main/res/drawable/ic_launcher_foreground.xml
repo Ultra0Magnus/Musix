@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Note de musique stylisée centrée sur la zone "safe" de 66x66 dp -->
+    <group android:scaleX="2.4"
+        android:scaleY="2.4"
+        android:translateX="34"
+        android:translateY="34">
+        <path
+            android:fillColor="#1DB954"
+            android:pathData="M9,17.5L9,5L17,3L17,15.5C16.4,15.2 15.7,15 15,15C13.3,15 12,16.3 12,18S13.3,21 15,21S18,19.7 18,18V7L11,8.4V19C11,19.7 10.7,20.4 10.2,20.9C9.7,21.4 9,21.7 8.3,21.7C7.6,21.7 6.9,21.4 6.4,20.9C5.9,20.4 5.6,19.7 5.6,19C5.6,18.3 5.9,17.6 6.4,17.1C6.9,16.6 7.6,16.3 8.3,16.3C8.5,16.3 8.8,16.3 9,16.4V17.5Z" />
+    </group>
+</vector>

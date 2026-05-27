@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!--
+        Theme Android natif minimal — la vraie palette est gérée par MusixTheme (Compose).
+        Ce thème ne sert qu'au splash window pendant le démarrage avant que Compose prenne la main.
+    -->
+    <style name="Theme.Musix" parent="android:Theme.Material.NoActionBar">
+        <item name="android:windowBackground">@color/musix_black</item>
+        <item name="android:statusBarColor">@color/musix_black</item>
+        <item name="android:navigationBarColor">@color/musix_black</item>
+        <item name="android:windowLightStatusBar">false</item>
+    </style>
+</resources>
