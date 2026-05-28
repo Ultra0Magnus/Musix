@@ -5,6 +5,7 @@ import com.louis.musix.data.local.MusixDatabase
 import com.louis.musix.data.newpipe.YouTubeRepository
 import com.louis.musix.data.repo.LibraryRepository
 import com.louis.musix.player.PlayerController
+import com.louis.musix.ui.screens.home.HomeViewModel
 import com.louis.musix.ui.screens.library.LibraryViewModel
 import com.louis.musix.ui.screens.player.PlayerViewModel
 import com.louis.musix.ui.screens.playlist.PlaylistDetailViewModel
@@ -36,6 +37,7 @@ val appModule = module {
     viewModel { SearchViewModel(get()) }
     viewModel { PlayerViewModel(get(), get(), get(), get()) }
     viewModel { LibraryViewModel(get()) }
+    viewModel { HomeViewModel(get(), get()) }
     // PlaylistDetailViewModel prend l'id en parametre (koinViewModel { parametersOf(id) })
     viewModel { params -> PlaylistDetailViewModel(params.get(), get()) }
 }

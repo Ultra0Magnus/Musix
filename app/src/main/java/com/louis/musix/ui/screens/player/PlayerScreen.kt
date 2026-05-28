@@ -1,5 +1,7 @@
 package com.louis.musix.ui.screens.player
 
+import android.graphics.drawable.BitmapDrawable
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -32,14 +34,20 @@ import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.palette.graphics.Palette
 import coil.compose.AsyncImage
 import com.louis.musix.domain.model.formatDuration
 import org.koin.androidx.compose.koinViewModel
@@ -52,10 +60,25 @@ fun PlayerScreen(
     val viewModel: PlayerViewModel = koinViewModel()
     val state by viewModel.uiState.collectAsStateWithLifecycle()
 
+    // Couleur dominante extraite de l'artwork (transition douce)
+    val background = MaterialTheme.colorScheme.background
+    var dominantColor by remember { mutableStateOf(background) }
+    val animatedDominant by animateColorAsState(
+        targetValue = dominantColor,
+        label = "dominant-color",
+    )
+
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
+            .background(
+                Brush.verticalGradient(
+                    colors = listOf(
+                        animatedDominant.copy(alpha = 0.6f),
+                        background,
+                    ),
+                )
+            )
             .padding(horizontal = 24.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
@@ -89,6 +112,20 @@ fun PlayerScreen(
                     contentDescription = "Couverture",
                     contentScale = ContentScale.Crop,
                     modifier = Modifier.fillMaxSize(),
+                    onSuccess = { successState ->
+                        // Extrait la couleur dominante de l'artwork
+                        val bitmap = (successState.result.drawable as? BitmapDrawable)?.bitmap
+                        if (bitmap != null) {
+                            Palette.from(bitmap).generate { palette ->
+                                val rgb = palette?.darkVibrantSwatch?.rgb
+                                    ?: palette?.darkMutedSwatch?.rgb
+                                    ?: palette?.dominantSwatch?.rgb
+                                if (rgb != null) {
+                                    dominantColor = Color(rgb)
+                                }
+                            }
+                        }
+                    },
                 )
             }
             if (state.isLoadingAudio) {

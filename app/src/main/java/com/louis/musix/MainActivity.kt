@@ -8,6 +8,11 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -69,8 +74,12 @@ private fun MusixContent() {
         bottomBar = {
             if (showBottomBar) {
                 Column {
-                    // ── MiniPlayer — visible uniquement si une piste est active ──
-                    if (playerState.hasActiveMedia) {
+                    // ── MiniPlayer — slide vertical anime ─────────────────────
+                    AnimatedVisibility(
+                        visible = playerState.hasActiveMedia,
+                        enter = slideInVertically(initialOffsetY = { it }) + fadeIn(),
+                        exit  = slideOutVertically(targetOffsetY = { it }) + fadeOut(),
+                    ) {
                         MiniPlayer(
                             onTap = {
                                 navController.navigate(Routes.Player.route) {

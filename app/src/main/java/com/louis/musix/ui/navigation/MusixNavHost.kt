@@ -34,7 +34,9 @@ fun MusixNavHost(
         startDestination = Routes.Home.route,
         modifier = modifier,
     ) {
-        composable(Routes.Home.route) { HomeScreen() }
+        composable(Routes.Home.route) {
+            HomeScreen(onSongClick = { song -> playSong(song) })
+        }
 
         composable(Routes.Search.route) {
             SearchScreen(
