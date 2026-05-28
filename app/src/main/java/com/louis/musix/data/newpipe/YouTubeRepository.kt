@@ -6,7 +6,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.schabi.newpipe.extractor.MediaFormat
 import org.schabi.newpipe.extractor.ServiceList
-import org.schabi.newpipe.extractor.kiosk.KioskInfo
 import org.schabi.newpipe.extractor.search.SearchInfo
 import org.schabi.newpipe.extractor.stream.StreamInfo
 import org.schabi.newpipe.extractor.stream.StreamInfoItem
@@ -31,18 +30,20 @@ class YouTubeRepository {
     // ─── Tendances YouTube (kiosk) ──────────────────────────────────────────────
 
     /**
-     * Retourne les vidéos tendance de YouTube via le kiosk "Trending".
-     * Contenu mixte (pas que de la musique) — c'est le flux YouTube par défaut.
+     * Retourne les vidéos tendance de YouTube via le kiosk par défaut (Trending).
+     * Utilise l'extracteur directement pour éviter le bug "Could not get trending name"
+     * de KioskInfo.getInfo() en v0.26.2.
      */
     suspend fun getTrending(): List<Song> = withContext(Dispatchers.IO) {
         try {
             val kioskList = youtube.kioskList
-            val handler = kioskList
-                .getListLinkHandlerFactoryByType("Trending")
-                .fromId("Trending")
-            val info = KioskInfo.getInfo(youtube, handler.url)
-            Log.d(TAG, "Trending : ${info.relatedItems.size} items")
-            info.relatedItems
+            val kioskId = kioskList.defaultKioskId
+            Log.d(TAG, "Trending kiosk id : $kioskId")
+            val extractor = kioskList.getExtractorById(kioskId, null)
+            extractor.fetchPage()
+            val items = extractor.initialPage.items
+            Log.d(TAG, "Trending : ${items.size} items")
+            items
                 .filterIsInstance<StreamInfoItem>()
                 .map { it.toSong() }
         } catch (e: Exception) {

@@ -33,6 +33,7 @@ import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -43,12 +44,16 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.palette.graphics.Palette
 import coil.compose.AsyncImage
+import coil.imageLoader
+import coil.request.ImageRequest
+import coil.request.SuccessResult
 import com.louis.musix.domain.model.formatDuration
 import org.koin.androidx.compose.koinViewModel
 
@@ -59,6 +64,7 @@ fun PlayerScreen(
 ) {
     val viewModel: PlayerViewModel = koinViewModel()
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+    val context = LocalContext.current
 
     // Couleur dominante extraite de l'artwork (transition douce)
     val background = MaterialTheme.colorScheme.background
@@ -67,6 +73,26 @@ fun PlayerScreen(
         targetValue = dominantColor,
         label = "dominant-color",
     )
+
+    // Extraction palette — se déclenche à chaque changement de thumbnail
+    LaunchedEffect(state.song?.thumbnailUrl) {
+        val url = state.song?.thumbnailUrl ?: return@LaunchedEffect
+        // allowHardware(false) est obligatoire : Palette ne peut pas lire un Bitmap hardware
+        val request = ImageRequest.Builder(context)
+            .data(url)
+            .allowHardware(false)
+            .build()
+        val result = context.imageLoader.execute(request)
+        if (result is SuccessResult) {
+            val bitmap = (result.drawable as? BitmapDrawable)?.bitmap ?: return@LaunchedEffect
+            Palette.from(bitmap).generate { palette ->
+                val rgb = palette?.darkVibrantSwatch?.rgb
+                    ?: palette?.darkMutedSwatch?.rgb
+                    ?: palette?.dominantSwatch?.rgb
+                if (rgb != null) dominantColor = Color(rgb)
+            }
+        }
+    }
 
     Column(
         modifier = Modifier
@@ -112,20 +138,6 @@ fun PlayerScreen(
                     contentDescription = "Couverture",
                     contentScale = ContentScale.Crop,
                     modifier = Modifier.fillMaxSize(),
-                    onSuccess = { successState ->
-                        // Extrait la couleur dominante de l'artwork
-                        val bitmap = (successState.result.drawable as? BitmapDrawable)?.bitmap
-                        if (bitmap != null) {
-                            Palette.from(bitmap).generate { palette ->
-                                val rgb = palette?.darkVibrantSwatch?.rgb
-                                    ?: palette?.darkMutedSwatch?.rgb
-                                    ?: palette?.dominantSwatch?.rgb
-                                if (rgb != null) {
-                                    dominantColor = Color(rgb)
-                                }
-                            }
-                        }
-                    },
                 )
             }
             if (state.isLoadingAudio) {
@@ -235,7 +247,7 @@ fun PlayerScreen(
             horizontalArrangement = Arrangement.SpaceEvenly,
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            IconButton(onClick = {}) {
+            IconButton(onClick = viewModel::skipToPrevious) {
                 Icon(
                     Icons.Outlined.SkipPrevious,
                     contentDescription = "Precedent",
@@ -259,7 +271,7 @@ fun PlayerScreen(
                 )
             }
 
-            IconButton(onClick = {}) {
+            IconButton(onClick = viewModel::skipToNext) {
                 Icon(
                     Icons.Outlined.SkipNext,
                     contentDescription = "Suivant",

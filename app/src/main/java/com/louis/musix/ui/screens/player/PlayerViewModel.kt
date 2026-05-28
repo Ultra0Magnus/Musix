@@ -92,6 +92,10 @@ class PlayerViewModel(
 
     fun seekTo(positionMs: Long) = playerController.seekTo(positionMs)
 
+    fun skipToNext() = playerController.skipToNext()
+
+    fun skipToPrevious() = playerController.skipToPrevious()
+
     fun toggleFavorite() {
         val song = _uiState.value.song ?: return
         viewModelScope.launch { libraryRepo.toggleFavorite(song) }

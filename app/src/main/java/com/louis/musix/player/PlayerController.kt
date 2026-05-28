@@ -180,4 +180,20 @@ class PlayerController(private val context: Context) {
         controller?.seekTo(positionMs)
         _state.update { it.copy(currentPositionMs = positionMs) }
     }
+
+    fun skipToNext() {
+        val ctrl = controller ?: return
+        ctrl.seekToNextMediaItem()
+        ctrl.play()
+    }
+
+    fun skipToPrevious() {
+        val ctrl = controller ?: return
+        if (ctrl.currentPosition > 3_000L) {
+            ctrl.seekTo(0L)
+        } else {
+            ctrl.seekToPreviousMediaItem()
+        }
+        ctrl.play()
+    }
 }
