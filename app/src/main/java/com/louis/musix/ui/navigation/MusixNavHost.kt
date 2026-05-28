@@ -9,6 +9,8 @@ import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
 import com.louis.musix.data.SelectedSongHolder
 import com.louis.musix.domain.model.Song
+import com.louis.musix.ui.screens.artist.AlbumDetailScreen
+import com.louis.musix.ui.screens.artist.ArtistScreen
 import com.louis.musix.ui.screens.home.HomeScreen
 import com.louis.musix.ui.screens.library.LibraryScreen
 import com.louis.musix.ui.screens.player.PlayerScreen
@@ -30,6 +32,11 @@ fun MusixNavHost(
         navController.navigate(Routes.Player.route)
     }
 
+    /** Navigue vers la page artiste. */
+    fun openArtist(name: String) {
+        navController.navigate(Routes.Artist.createRoute(name))
+    }
+
     NavHost(
         navController = navController,
         startDestination = Routes.Home.route,
@@ -41,7 +48,8 @@ fun MusixNavHost(
 
         composable(Routes.Search.route) {
             SearchScreen(
-                onSongClick = { song -> playSong(song) }
+                onSongClick   = { song -> playSong(song) },
+                onArtistClick = { name -> openArtist(name) },
             )
         }
 
@@ -58,7 +66,10 @@ fun MusixNavHost(
         }
 
         composable(Routes.Player.route) {
-            PlayerScreen(onBack = { navController.popBackStack() })
+            PlayerScreen(
+                onBack        = { navController.popBackStack() },
+                onArtistClick = { name -> openArtist(name) },
+            )
         }
 
         composable(Routes.SpotifyImport.route) {
@@ -74,6 +85,43 @@ fun MusixNavHost(
                 playlistId = playlistId,
                 onBack = { navController.popBackStack() },
                 onSongClick = { song -> playSong(song) },
+            )
+        }
+
+        composable(
+            route = Routes.Artist.route,
+            arguments = listOf(navArgument("name") {
+                type = NavType.StringType
+                defaultValue = ""
+            }),
+        ) { backStackEntry ->
+            val artistName = backStackEntry.arguments?.getString("name") ?: ""
+            ArtistScreen(
+                artistName   = artistName,
+                onSongClick  = { song -> playSong(song) },
+                onAlbumClick = { album ->
+                    navController.navigate(
+                        Routes.AlbumDetail.createRoute(album.name, album.playlistUrl)
+                    )
+                },
+                onBack = { navController.popBackStack() },
+            )
+        }
+
+        composable(
+            route = Routes.AlbumDetail.route,
+            arguments = listOf(
+                navArgument("name") { type = NavType.StringType; defaultValue = "" },
+                navArgument("url")  { type = NavType.StringType; defaultValue = "" },
+            ),
+        ) { backStackEntry ->
+            val albumName   = backStackEntry.arguments?.getString("name") ?: ""
+            val playlistUrl = backStackEntry.arguments?.getString("url")  ?: ""
+            AlbumDetailScreen(
+                albumName   = albumName,
+                playlistUrl = playlistUrl,
+                onSongClick = { song -> playSong(song) },
+                onBack      = { navController.popBackStack() },
             )
         }
     }

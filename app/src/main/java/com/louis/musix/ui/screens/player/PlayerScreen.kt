@@ -3,6 +3,7 @@ package com.louis.musix.ui.screens.player
 import android.graphics.drawable.BitmapDrawable
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -61,6 +62,7 @@ import org.koin.androidx.compose.koinViewModel
 @Composable
 fun PlayerScreen(
     onBack: () -> Unit,
+    onArtistClick: (String) -> Unit = {},
 ) {
     val viewModel: PlayerViewModel = koinViewModel()
     val state by viewModel.uiState.collectAsStateWithLifecycle()
@@ -168,12 +170,20 @@ fun PlayerScreen(
                     overflow = TextOverflow.Ellipsis,
                 )
                 Spacer(Modifier.height(4.dp))
+                // Nom de l'artiste cliquable → ouvre la page artiste
+                val artistName = state.song?.artist ?: ""
                 Text(
-                    text = state.song?.artist ?: "",
+                    text = artistName,
                     style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = if (artistName.isNotEmpty())
+                        MaterialTheme.colorScheme.primary
+                    else
+                        MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.clickable(enabled = artistName.isNotEmpty()) {
+                        onArtistClick(artistName)
+                    },
                 )
             }
             // Bouton favori

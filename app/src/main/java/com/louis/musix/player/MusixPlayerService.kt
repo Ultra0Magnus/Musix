@@ -27,10 +27,10 @@ class MusixPlayerService : MediaSessionService() {
     override fun onCreate() {
         super.onCreate()
         val player = ExoPlayer.Builder(this).build().also {
-            // REPEAT_MODE_ALL :
-            //  • 1 titre  → next/prev rejoue le même morceau (boutons non grisés)
-            //  • Playlist → next/prev avancent dans la file (Phase 5)
-            it.repeatMode = Player.REPEAT_MODE_ALL
+            // REPEAT_MODE_OFF : ExoPlayer émet STATE_ENDED en fin de morceau.
+            // La file d'attente est gérée au niveau app (PlayerController._queue) :
+            // STATE_ENDED → PlayerController détecte la fin et charge le morceau suivant.
+            it.repeatMode = Player.REPEAT_MODE_OFF
         }
         mediaSession = MediaSession.Builder(this, player).build()
     }

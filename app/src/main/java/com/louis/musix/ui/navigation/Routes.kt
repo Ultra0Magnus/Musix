@@ -1,5 +1,6 @@
 package com.louis.musix.ui.navigation
 
+import android.net.Uri
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.LibraryMusic
@@ -19,6 +20,18 @@ sealed class Routes(val route: String) {
 
     // Phase 7 — import Spotify
     data object SpotifyImport : Routes("spotify_import")
+
+    // Phase 8 — page artiste
+    // On passe le nom en query param (plus sûr que le path param pour les noms avec "/" ou espaces)
+    data object Artist : Routes("artist?name={name}") {
+        fun createRoute(name: String) = "artist?name=${Uri.encode(name)}"
+    }
+
+    // Phase 8 — détail d'un album (playlist YouTube Music)
+    data object AlbumDetail : Routes("album?name={name}&url={url}") {
+        fun createRoute(name: String, playlistUrl: String) =
+            "album?name=${Uri.encode(name)}&url=${Uri.encode(playlistUrl)}"
+    }
 }
 
 data class BottomNavItem(

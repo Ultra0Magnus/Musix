@@ -56,6 +56,7 @@ import org.koin.compose.koinInject
 @Composable
 fun SearchScreen(
     onSongClick: (Song) -> Unit = {},
+    onArtistClick: (String) -> Unit = {},
 ) {
     val viewModel: SearchViewModel = koinViewModel()
     val libraryRepo: LibraryRepository = koinInject()
@@ -232,9 +233,10 @@ fun SearchScreen(
                 LazyColumn(modifier = Modifier.fillMaxSize()) {
                     items(items = state.songs, key = { it.id }) { song ->
                         SongRow(
-                            song = song,
-                            onClick = onSongClick,
-                            onMoreClick = { selected ->
+                            song          = song,
+                            onClick       = onSongClick,
+                            onArtistClick = onArtistClick,
+                            onMoreClick   = { selected ->
                                 scope.launch {
                                     isFavoriteSong = libraryRepo.isFavorite(selected.id).first()
                                 }

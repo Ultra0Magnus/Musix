@@ -1,11 +1,14 @@
 package com.louis.musix.data.newpipe
 
 import android.util.Log
+import com.louis.musix.domain.model.ArtistAlbum
 import com.louis.musix.domain.model.Song
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.schabi.newpipe.extractor.MediaFormat
 import org.schabi.newpipe.extractor.ServiceList
+import org.schabi.newpipe.extractor.playlist.PlaylistInfo
+import org.schabi.newpipe.extractor.playlist.PlaylistInfoItem
 import org.schabi.newpipe.extractor.search.SearchInfo
 import org.schabi.newpipe.extractor.stream.StreamInfo
 import org.schabi.newpipe.extractor.stream.StreamInfoItem
@@ -26,6 +29,43 @@ class YouTubeRepository {
             .filterIsInstance<StreamInfoItem>()
             .map { it.toSong() }
     }
+
+    // ─── Albums d'un artiste (YouTube Music) ───────────────────────────────────
+
+    /**
+     * Recherche les albums d'un artiste sur YouTube Music.
+     * Utilise le filtre "music_albums" → retourne des [PlaylistInfoItem].
+     */
+    suspend fun searchAlbums(artistName: String): List<ArtistAlbum> =
+        withContext(Dispatchers.IO) {
+            try {
+                val handler = youtube.searchQHFactory
+                    .fromQuery(artistName, listOf("music_albums"), "")
+                val info = SearchInfo.getInfo(youtube, handler)
+                info.relatedItems
+                    .filterIsInstance<PlaylistInfoItem>()
+                    .take(12)
+                    .mapNotNull { it.toAlbum() }
+                    .also { Log.d(TAG, "${it.size} albums pour « $artistName »") }
+            } catch (e: Exception) {
+                Log.w(TAG, "searchAlbums(\"$artistName\") KO : ${e.message}")
+                emptyList()
+            }
+        }
+
+    /**
+     * Récupère les pistes d'un album à partir de l'URL de sa playlist YouTube Music.
+     * Retourne seulement la première page (≈ 25 pistes) — suffisant pour un album classique.
+     */
+    suspend fun getAlbumTracks(playlistUrl: String): List<Song> =
+        withContext(Dispatchers.IO) {
+            Log.d(TAG, "getAlbumTracks → $playlistUrl")
+            val info = PlaylistInfo.getInfo(youtube, playlistUrl)
+            info.relatedItems
+                .filterIsInstance<StreamInfoItem>()
+                .map { it.toSong() }
+                .also { Log.d(TAG, "${it.size} pistes dans l'album") }
+        }
 
     // ─── Tendances YouTube (kiosk) ──────────────────────────────────────────────
 
@@ -146,5 +186,19 @@ class YouTubeRepository {
         Regex("""youtu\.be/([^?&\s]+)""").find(url)?.groupValues?.get(1)?.let { return it }
         Regex("""youtube\.com/shorts/([^?&\s]+)""").find(url)?.groupValues?.get(1)?.let { return it }
         return null
+    }
+
+    // ─── Conversion PlaylistInfoItem → ArtistAlbum ─────────────────────────────
+
+    private fun PlaylistInfoItem.toAlbum(): ArtistAlbum? {
+        val albumUrl = url?.takeIf { it.isNotBlank() } ?: return null
+        val artwork  = thumbnails.maxByOrNull { it.width }?.url ?: ""
+        return ArtistAlbum(
+            id          = albumUrl,
+            name        = name ?: "Album inconnu",
+            artworkUrl  = artwork,
+            trackCount  = streamCount.toInt().coerceAtLeast(0),
+            playlistUrl = albumUrl,
+        )
     }
 }

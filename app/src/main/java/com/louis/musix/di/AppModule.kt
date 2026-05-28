@@ -7,6 +7,8 @@ import com.louis.musix.data.repo.LibraryRepository
 import com.louis.musix.data.spotify.SpotifyAuthManager
 import com.louis.musix.data.spotify.SpotifyRepository
 import com.louis.musix.player.PlayerController
+import com.louis.musix.ui.screens.artist.AlbumDetailViewModel
+import com.louis.musix.ui.screens.artist.ArtistViewModel
 import com.louis.musix.ui.screens.home.HomeViewModel
 import com.louis.musix.ui.screens.library.LibraryViewModel
 import com.louis.musix.ui.screens.player.PlayerViewModel
@@ -38,7 +40,7 @@ val appModule = module {
     single { LibraryRepository(get(), get(), get(), get()) }
 
     // ─── Lecteur background ───────────────────────────────────────────────────
-    single { PlayerController(androidContext()) }
+    single { PlayerController(androidContext(), get()) }
 
     // ─── ViewModels ───────────────────────────────────────────────────────────
     viewModel { SearchViewModel(get()) }
@@ -46,6 +48,8 @@ val appModule = module {
     viewModel { LibraryViewModel(get()) }
     viewModel { HomeViewModel(get(), get()) }
     viewModel { SpotifyImportViewModel(get(), get(), get(), get()) }
+    viewModel { ArtistViewModel(get()) }
+    viewModel { AlbumDetailViewModel(get()) }
     // PlaylistDetailViewModel prend l'id en parametre (koinViewModel { parametersOf(id) })
     viewModel { params -> PlaylistDetailViewModel(params.get(), get()) }
 }

@@ -30,9 +30,10 @@ import com.louis.musix.domain.model.formatDuration
 /**
  * Ligne representant un morceau dans une liste.
  *
- * @param song          Le morceau a afficher.
- * @param onClick       Appele quand l'utilisateur tape sur la ligne.
- * @param onMoreClick   Si non-null, affiche un bouton "..." en fin de ligne.
+ * @param song           Le morceau a afficher.
+ * @param onClick        Appele quand l'utilisateur tape sur la ligne.
+ * @param onMoreClick    Si non-null, affiche un bouton "..." en fin de ligne.
+ * @param onArtistClick  Si non-null, le nom de l'artiste devient cliquable (en bleu).
  */
 @Composable
 fun SongRow(
@@ -40,6 +41,7 @@ fun SongRow(
     onClick: (Song) -> Unit,
     modifier: Modifier = Modifier,
     onMoreClick: ((Song) -> Unit)? = null,
+    onArtistClick: ((String) -> Unit)? = null,
 ) {
     Row(
         modifier = modifier
@@ -73,9 +75,16 @@ fun SongRow(
             Text(
                 text = song.artist,
                 style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                color = if (onArtistClick != null)
+                    MaterialTheme.colorScheme.primary
+                else
+                    MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
+                modifier = if (onArtistClick != null)
+                    Modifier.clickable { onArtistClick(song.artist) }
+                else
+                    Modifier,
             )
         }
 

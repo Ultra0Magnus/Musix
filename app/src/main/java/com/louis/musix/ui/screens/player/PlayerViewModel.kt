@@ -24,6 +24,10 @@ data class PlayerUiState(
     val durationMs: Long = 0L,
     val isFavorite: Boolean = false,
     val error: String? = null,
+    /** Taille de la file d'attente (0 = pas encore construite). */
+    val queueSize: Int = 0,
+    /** Position dans la file (0-based). */
+    val currentQueueIndex: Int = 0,
 )
 
 // ─── ViewModel ─────────────────────────────────────────────────────────────────
@@ -42,20 +46,43 @@ class PlayerViewModel(
     private var favoriteJob: Job? = null
 
     init {
-        // Synchroniser isPlaying / position / durée depuis le controller
+        // ── 1. Synchroniser isPlaying / position / durée / queue / morceau courant ──
         viewModelScope.launch {
             playerController.state.collect { s ->
-                _uiState.update {
-                    it.copy(
-                        isPlaying         = s.isPlaying,
-                        currentPositionMs = s.currentPositionMs,
-                        durationMs        = s.durationMs,
-                    )
+                val prevSong = _uiState.value.song
+                val newSong  = s.currentSong
+
+                _uiState.update { it.copy(
+                    isPlaying         = s.isPlaying,
+                    currentPositionMs = s.currentPositionMs,
+                    durationMs        = s.durationMs,
+                    queueSize         = s.queueSize,
+                    currentQueueIndex = s.currentQueueIndex,
+                    // Si le controller a un morceau courant (y compris après auto-advance),
+                    // on le reflète dans l'UI même si loadAndPlay n'a pas été appelé.
+                    song = newSong ?: it.song,
+                )}
+
+                // Abonnement favori mis à jour quand le morceau change (auto-advance inclus)
+                if (newSong != null && newSong.id != prevSong?.id) {
+                    observeFavorite(newSong)
                 }
             }
         }
-        // Charger immédiatement la chanson en attente (déposée par SearchScreen)
-        songHolder.current?.let { loadAndPlay(it) }
+
+        // ── 2. Charger la chanson déposée par la navigation ──────────────────────
+        val pending = songHolder.current
+        if (pending != null) {
+            songHolder.current = null   // consommer pour éviter un double-load
+            loadAndPlay(pending)
+        } else {
+            // Reconstituer l'état si l'utilisateur revient sur PlayerScreen
+            // sans avoir sélectionné un nouveau morceau (e.g. tap sur MiniPlayer)
+            playerController.state.value.currentSong?.let { current ->
+                _uiState.update { it.copy(song = current) }
+                observeFavorite(current)
+            }
+        }
     }
 
     // ─── Actions ──────────────────────────────────────────────────────────────
@@ -64,19 +91,25 @@ class PlayerViewModel(
         viewModelScope.launch {
             _uiState.update { it.copy(song = song, isLoadingAudio = true, error = null) }
 
-            // Observer l'état favori pour ce morceau
-            favoriteJob?.cancel()
-            favoriteJob = viewModelScope.launch {
-                libraryRepo.isFavorite(song.id).collect { fav ->
-                    _uiState.update { it.copy(isFavorite = fav) }
-                }
-            }
-
             try {
                 val audioUrl = repository.getAudioStreamUrl(song.videoUrl)
                 playerController.setAndPlay(song, audioUrl)
                 libraryRepo.logHistory(song)
                 _uiState.update { it.copy(isLoadingAudio = false) }
+
+                // ── Construction de la file d'attente en arrière-plan ────────────
+                // Recherche des morceaux de l'artiste → queue = [song courant] + [résultats]
+                launch {
+                    try {
+                        val related = repository.search(song.artist)
+                            .filter { it.id != song.id }
+                            .take(20)
+                        playerController.setQueue(listOf(song) + related, startIndex = 0)
+                    } catch (_: Exception) {
+                        // File non construite → pas grave, l'écoute continue
+                    }
+                }
+
             } catch (e: Exception) {
                 _uiState.update {
                     it.copy(
@@ -99,5 +132,16 @@ class PlayerViewModel(
     fun toggleFavorite() {
         val song = _uiState.value.song ?: return
         viewModelScope.launch { libraryRepo.toggleFavorite(song) }
+    }
+
+    // ─── Privé ────────────────────────────────────────────────────────────────
+
+    private fun observeFavorite(song: Song) {
+        favoriteJob?.cancel()
+        favoriteJob = viewModelScope.launch {
+            libraryRepo.isFavorite(song.id).collect { fav ->
+                _uiState.update { it.copy(isFavorite = fav) }
+            }
+        }
     }
 }
