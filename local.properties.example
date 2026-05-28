@@ -1,0 +1,8 @@
+# Copier ce fichier en local.properties (ignoré par git) et renseigner les valeurs
+# Ce fichier d'exemple PEUT être commité — il ne contient pas de vraies clés.
+
+# SDK Android
+# sdk.dir=/Users/louis/Library/Android/sdk
+
+# Client ID Spotify (obtenu depuis https://developer.spotify.com/dashboard)
+spotify.client.id=VOTRE_CLIENT_ID_ICI

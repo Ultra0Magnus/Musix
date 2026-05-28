@@ -5,6 +5,7 @@ import android.content.Intent
 import android.net.Uri
 import android.util.Base64
 import android.util.Log
+import com.louis.musix.BuildConfig
 import com.louis.musix.data.spotify.model.SpotifyTokenResponse
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -20,9 +21,10 @@ import java.security.SecureRandom
 
 private const val TAG = "Musix.SpotifyAuth"
 
-private const val CLIENT_ID    = "50fa02008df5469fbdeb8407ec15ff80"
+// CLIENT_ID lu depuis BuildConfig → défini dans local.properties (ne jamais committer la valeur)
+private val CLIENT_ID get() = BuildConfig.SPOTIFY_CLIENT_ID
 private const val REDIRECT_URI = "musix://callback"
-private const val SCOPES       =
+private const val SCOPES =
     "user-library-read playlist-read-private playlist-read-collaborative"
 
 private const val PREF_FILE   = "spotify_prefs"
@@ -37,12 +39,16 @@ private const val KEY_EXPIRES = "expires_at"
  *  - Échange le code contre des tokens (via OkHttp)
  *  - Stocke les tokens dans SharedPreferences
  *  - Rafraîchit le token automatiquement
+ *
+ * [httpClient] est injecté via Koin (singleton partagé avec le reste de l'app).
  */
-class SpotifyAuthManager(private val context: Context) {
+class SpotifyAuthManager(
+    private val context: Context,
+    private val httpClient: OkHttpClient,
+) {
 
-    private val prefs      = context.getSharedPreferences(PREF_FILE, Context.MODE_PRIVATE)
-    private val json       = Json { ignoreUnknownKeys = true }
-    private val httpClient = OkHttpClient()
+    private val prefs = context.getSharedPreferences(PREF_FILE, Context.MODE_PRIVATE)
+    private val json  = Json { ignoreUnknownKeys = true }
 
     /** code_verifier PKCE conservé jusqu'à l'échange de code. */
     private var pendingVerifier: String? = null
@@ -78,8 +84,8 @@ class SpotifyAuthManager(private val context: Context) {
     // ── Lancement OAuth ───────────────────────────────────────────────────────
 
     fun launchAuth() {
-        pendingVerifier  = generateVerifier()
-        val challenge    = generateChallenge(pendingVerifier!!)
+        pendingVerifier = generateVerifier()
+        val challenge   = generateChallenge(pendingVerifier!!)
 
         val authUrl = Uri.parse("https://accounts.spotify.com/authorize").buildUpon()
             .appendQueryParameter("client_id",             CLIENT_ID)
@@ -150,56 +156,47 @@ class SpotifyAuthManager(private val context: Context) {
 
     private fun callTokenEndpoint(body: FormBody): Boolean {
         return try {
-            val response = httpClient.newCall(
-                Request.Builder()
-                    .url("https://accounts.spotify.com/api/token")
-                    .post(body)
-                    .build(),
-            ).execute()
-
-            val bodyStr = response.body?.string() ?: return false
+            val request = Request.Builder()
+                .url("https://accounts.spotify.com/api/token")
+                .post(body)
+                .build()
+            val response = httpClient.newCall(request).execute()
             if (!response.isSuccessful) {
-                Log.e(TAG, "Token KO ${response.code}: $bodyStr")
+                Log.e(TAG, "Token endpoint KO : ${response.code}")
                 return false
             }
-            saveTokens(json.decodeFromString<SpotifyTokenResponse>(bodyStr))
+            val tokenResp = json.decodeFromString<SpotifyTokenResponse>(
+                response.body?.string() ?: return false
+            )
+            prefs.edit()
+                .putString(KEY_ACCESS,  tokenResp.accessToken)
+                .putString(KEY_REFRESH, tokenResp.refreshToken ?: prefs.getString(KEY_REFRESH, null))
+                .putLong(KEY_EXPIRES, System.currentTimeMillis() + tokenResp.expiresIn * 1000L)
+                .apply()
+            Log.d(TAG, "Token sauvegardé, expire dans ${tokenResp.expiresIn}s")
             true
         } catch (e: Exception) {
-            Log.e(TAG, "Token exception : ${e.message}")
+            Log.e(TAG, "callTokenEndpoint KO : ${e.message}")
             false
         }
     }
 
-    // ── Token valide (avec refresh auto) ─────────────────────────────────────
+    // ── Lecture des tokens ────────────────────────────────────────────────────
 
-    suspend fun getValidToken(): String? {
-        val expiresAt   = prefs.getLong(KEY_EXPIRES, 0L)
-        val accessToken = prefs.getString(KEY_ACCESS, null)
-        val remaining   = (expiresAt - System.currentTimeMillis()) / 1000
-        Log.d(TAG, "getValidToken : token=${if (accessToken != null) "présent" else "absent"}, expire dans ${remaining}s")
-        // Marge de 60 s pour éviter une expiration en pleine requête
-        if (accessToken != null && System.currentTimeMillis() < expiresAt - 60_000L) {
-            return accessToken
-        }
-        Log.d(TAG, "Token expiré ou absent → refresh")
-        return if (refreshAccessToken()) prefs.getString(KEY_ACCESS, null) else null
+    fun getAccessToken(): String? = prefs.getString(KEY_ACCESS, null)
+
+    fun isTokenValid(): Boolean {
+        val expires = prefs.getLong(KEY_EXPIRES, 0L)
+        return expires > System.currentTimeMillis() + 60_000L
     }
 
-    fun isConnected(): Boolean  = prefs.getString(KEY_REFRESH, null) != null
+    fun isLoggedIn(): Boolean = getAccessToken() != null
 
-    fun disconnect() = prefs.edit().clear().apply()
-
-    // ── Stockage ──────────────────────────────────────────────────────────────
-
-    private fun saveTokens(resp: SpotifyTokenResponse) {
-        val expiresAt = System.currentTimeMillis() + resp.expiresIn * 1_000L
-        prefs.edit()
-            .putString(KEY_ACCESS, resp.accessToken)
-            .putLong(KEY_EXPIRES, expiresAt)
-            .apply()
-        resp.refreshToken?.let { rt ->
-            prefs.edit().putString(KEY_REFRESH, rt).apply()
-        }
-        Log.d(TAG, "Tokens sauvegardés, expire dans ${resp.expiresIn}s")
+    fun logout() {
+        prefs.edit().clear().apply()
+        _pendingCode.value  = null
+        _pendingError.value = null
+        pendingVerifier     = null
+        Log.d(TAG, "Déconnexion Spotify")
     }
 }
