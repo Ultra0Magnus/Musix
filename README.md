@@ -1,5 +1,7 @@
 # Musix
 
+Ce readme n'est plus à jour, merci de ne pas en tenir compte
+
 Application Android de streaming musical via YouTube (NewPipeExtractor). Usage personnel, sideload APK.
 
 ## État actuel : Phase 1 — squelette navigable
