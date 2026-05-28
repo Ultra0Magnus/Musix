@@ -15,6 +15,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Add
+import androidx.compose.material.icons.outlined.CloudSync
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.PlaylistPlay
 import androidx.compose.material3.AlertDialog
@@ -54,6 +55,7 @@ import org.koin.androidx.compose.koinViewModel
 fun LibraryScreen(
     onPlaylistClick: (Long) -> Unit = {},
     onSongClick: (Song) -> Unit = {},
+    onSpotifyImportClick: () -> Unit = {},
 ) {
     val viewModel: LibraryViewModel = koinViewModel()
     val playlists by viewModel.playlists.collectAsStateWithLifecycle()
@@ -122,7 +124,7 @@ fun LibraryScreen(
             }
 
             when (selectedTab) {
-                0 -> PlaylistsTab(playlists, onPlaylistClick, viewModel::deletePlaylist)
+                0 -> PlaylistsTab(playlists, onPlaylistClick, viewModel::deletePlaylist, onSpotifyImportClick)
                 1 -> FavoritesTab(favorites, onSongClick, viewModel::removeFavorite)
                 2 -> HistoryTab(history, onSongClick, viewModel::clearHistory)
             }
@@ -137,20 +139,50 @@ private fun PlaylistsTab(
     playlists: List<Playlist>,
     onPlaylistClick: (Long) -> Unit,
     onDelete: (Long) -> Unit,
+    onSpotifyImport: () -> Unit,
 ) {
-    if (playlists.isEmpty()) {
-        EmptyState("Aucune playlist\nAppuie sur + pour en creer une")
-    } else {
-        LazyColumn(
-            modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(bottom = 88.dp),
+    Column(modifier = Modifier.fillMaxSize()) {
+        // Bouton import Spotify en haut de l'onglet
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 4.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
         ) {
-            items(playlists, key = { it.id }) { playlist ->
-                PlaylistRow(playlist, onClick = { onPlaylistClick(playlist.id) }, onDelete = { onDelete(playlist.id) })
-                HorizontalDivider(
-                    modifier = Modifier.padding(horizontal = 16.dp),
-                    color = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f),
-                )
+            Icon(
+                Icons.Outlined.CloudSync,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(18.dp),
+            )
+            TextButton(onClick = onSpotifyImport) {
+                Text("Importer depuis Spotify")
+            }
+        }
+        HorizontalDivider(
+            modifier = Modifier.padding(horizontal = 16.dp),
+            color = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f),
+        )
+
+        if (playlists.isEmpty()) {
+            EmptyState("Aucune playlist\nAppuie sur + pour en creer une")
+        } else {
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(bottom = 88.dp),
+            ) {
+                items(playlists, key = { it.id }) { playlist ->
+                    PlaylistRow(
+                        playlist = playlist,
+                        onClick = { onPlaylistClick(playlist.id) },
+                        onDelete = { onDelete(playlist.id) },
+                    )
+                    HorizontalDivider(
+                        modifier = Modifier.padding(horizontal = 16.dp),
+                        color = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f),
+                    )
+                }
             }
         }
     }

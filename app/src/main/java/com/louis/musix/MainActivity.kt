@@ -1,6 +1,7 @@
 package com.louis.musix
 
 import android.Manifest
+import android.content.Intent
 import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -24,19 +25,27 @@ import androidx.compose.ui.Modifier
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import com.louis.musix.data.spotify.SpotifyAuthManager
 import com.louis.musix.player.PlayerController
 import com.louis.musix.ui.components.MiniPlayer
 import com.louis.musix.ui.navigation.MusixBottomBar
 import com.louis.musix.ui.navigation.MusixNavHost
 import com.louis.musix.ui.navigation.Routes
 import com.louis.musix.ui.theme.MusixTheme
+import org.koin.android.ext.android.inject
 import org.koin.compose.KoinContext
 import org.koin.compose.koinInject
 
 class MainActivity : ComponentActivity() {
+
+    // Injection Koin au niveau de l'Activity (pas dans le scope Compose)
+    private val spotifyAuthManager: SpotifyAuthManager by inject()
+
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
+        // Vérifier si l'Activity a été démarrée par le deep link Spotify (démarrage à froid)
+        handleSpotifyCallback(intent)
         setContent {
             KoinContext {
                 MusixTheme {
@@ -44,6 +53,29 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
+    }
+
+    /** Appelé quand l'app est déjà en foreground et reçoit le deep link (singleTop). */
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        handleSpotifyCallback(intent)
+    }
+
+    /**
+     * Extrait le code ou l'erreur du deep link musix://callback
+     * et le pousse dans [SpotifyAuthManager].
+     */
+    private fun handleSpotifyCallback(intent: Intent?) {
+        val uri = intent?.data ?: return
+        if (uri.scheme != "musix" || uri.host != "callback") return
+
+        val error = uri.getQueryParameter("error")
+        if (error != null) {
+            spotifyAuthManager.handleCallbackError(error)
+            return
+        }
+        val code = uri.getQueryParameter("code") ?: return
+        spotifyAuthManager.handleCallback(code)
     }
 }
 
@@ -66,8 +98,9 @@ private fun MusixContent() {
         }
     }
 
-    // La BottomBar (et le MiniPlayer) sont cachés sur l'écran player (plein écran)
-    val showBottomBar = currentRoute != Routes.Player.route
+    // La BottomBar (et le MiniPlayer) sont cachés sur les écrans plein-écran
+    val showBottomBar = currentRoute != Routes.Player.route &&
+                        currentRoute != Routes.SpotifyImport.route
 
     Scaffold(
         modifier = Modifier.fillMaxSize(),

@@ -14,6 +14,7 @@ import com.louis.musix.ui.screens.library.LibraryScreen
 import com.louis.musix.ui.screens.player.PlayerScreen
 import com.louis.musix.ui.screens.playlist.PlaylistDetailScreen
 import com.louis.musix.ui.screens.search.SearchScreen
+import com.louis.musix.ui.screens.spotify.SpotifyImportScreen
 import org.koin.compose.koinInject
 
 @Composable
@@ -50,11 +51,18 @@ fun MusixNavHost(
                     navController.navigate(Routes.PlaylistDetail.createRoute(playlistId))
                 },
                 onSongClick = { song -> playSong(song) },
+                onSpotifyImportClick = {
+                    navController.navigate(Routes.SpotifyImport.route)
+                },
             )
         }
 
         composable(Routes.Player.route) {
             PlayerScreen(onBack = { navController.popBackStack() })
+        }
+
+        composable(Routes.SpotifyImport.route) {
+            SpotifyImportScreen(onBack = { navController.popBackStack() })
         }
 
         composable(

@@ -16,6 +16,9 @@ sealed class Routes(val route: String) {
     data object PlaylistDetail : Routes("playlist/{playlistId}") {
         fun createRoute(playlistId: Long) = "playlist/$playlistId"
     }
+
+    // Phase 7 — import Spotify
+    data object SpotifyImport : Routes("spotify_import")
 }
 
 data class BottomNavItem(
