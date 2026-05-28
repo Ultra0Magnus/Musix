@@ -15,23 +15,34 @@ import com.louis.musix.ui.screens.player.PlayerViewModel
 import com.louis.musix.ui.screens.playlist.PlaylistDetailViewModel
 import com.louis.musix.ui.screens.search.SearchViewModel
 import com.louis.musix.ui.screens.spotify.SpotifyImportViewModel
+import okhttp3.OkHttpClient
 import org.koin.android.ext.koin.androidContext
 import org.koin.androidx.viewmodel.dsl.viewModel
 import org.koin.dsl.module
+import java.util.concurrent.TimeUnit
 
 val appModule = module {
 
-    // ─── Holders ──────────────────────────────────────────────────────────────
+    // ─── OkHttpClient partagé (pool de connexions unique pour toute l'app) ──────
+    single {
+        OkHttpClient.Builder()
+            .connectTimeout(30, TimeUnit.SECONDS)
+            .readTimeout(30, TimeUnit.SECONDS)
+            .writeTimeout(30, TimeUnit.SECONDS)
+            .build()
+    }
+
+    // ─── Holders (conservé pour compatibilité, déprécié — voir PlayerViewModel) ─
     single { SelectedSongHolder() }
 
     // ─── Repositories ─────────────────────────────────────────────────────────
     single { YouTubeRepository() }
 
-    // ─── Spotify ──────────────────────────────────────────────────────────────
-    single { SpotifyAuthManager(androidContext()) }
+    // ─── Spotify (OkHttpClient injecté) ───────────────────────────────────────
+    single { SpotifyAuthManager(androidContext(), get()) }
     single { SpotifyRepository(get()) }
 
-    // ─── Base de donnees Room ─────────────────────────────────────────────────
+    // ─── Base de données Room ─────────────────────────────────────────────────
     single { MusixDatabase.create(androidContext()) }
     single { get<MusixDatabase>().songDao() }
     single { get<MusixDatabase>().favoriteDao() }
@@ -50,6 +61,6 @@ val appModule = module {
     viewModel { SpotifyImportViewModel(get(), get(), get(), get()) }
     viewModel { ArtistViewModel(get()) }
     viewModel { AlbumDetailViewModel(get()) }
-    // PlaylistDetailViewModel prend l'id en parametre (koinViewModel { parametersOf(id) })
+    // PlaylistDetailViewModel prend l'id en paramètre (koinViewModel { parametersOf(id) })
     viewModel { params -> PlaylistDetailViewModel(params.get(), get()) }
 }

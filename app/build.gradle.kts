@@ -18,6 +18,17 @@ android {
         versionName = "0.1.0"
 
         vectorDrawables { useSupportLibrary = true }
+
+        // CLIENT_ID Spotify injecté depuis local.properties (ne pas committer la valeur réelle)
+        // Ajouter dans local.properties : spotify.client.id=50fa02008df5469fbdeb8407ec15ff80
+        buildConfigField("String", "SPOTIFY_CLIENT_ID",
+            (project.findProperty("spotify.client.id") as String? ?: "").let { '"' + it + '"' }
+        )
+    }
+
+    buildFeatures {
+        compose = true
+        buildConfig = true
     }
 
     buildTypes {
@@ -25,7 +36,6 @@ android {
             isMinifyEnabled = false
         }
         release {
-            // NewPipeExtractor utilise de la réflexion : minification désactivée pour le sideload v1
             isMinifyEnabled = false
             isShrinkResources = false
             signingConfig = signingConfigs.getByName("debug")
@@ -37,8 +47,6 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
     kotlinOptions { jvmTarget = "17" }
-
-    buildFeatures { compose = true }
 
     packaging {
         resources {
