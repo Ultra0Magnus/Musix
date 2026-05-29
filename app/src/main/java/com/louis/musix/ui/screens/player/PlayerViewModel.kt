@@ -3,16 +3,31 @@ package com.louis.musix.ui.screens.player
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.louis.musix.data.SelectedSongHolder
+import com.louis.musix.data.lyrics.LyricsRepository
+import com.louis.musix.data.lyrics.LyricsResult
 import com.louis.musix.data.newpipe.YouTubeRepository
 import com.louis.musix.data.repo.LibraryRepository
+import com.louis.musix.domain.model.LyricLine
 import com.louis.musix.domain.model.Song
 import com.louis.musix.player.PlayerController
+import com.louis.musix.player.RepeatMode
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+
+// ─── États de l'UI des paroles ────────────────────────────────────────────────
+
+sealed interface LyricsUiState {
+    data object Idle         : LyricsUiState
+    data object Loading      : LyricsUiState
+    data object Instrumental : LyricsUiState
+    data object NotFound     : LyricsUiState
+    data class  Plain(val text: String)             : LyricsUiState
+    data class  Synced(val lines: List<LyricLine>)  : LyricsUiState
+}
 
 // ─── État de l'écran player ────────────────────────────────────────────────────
 
@@ -24,10 +39,15 @@ data class PlayerUiState(
     val durationMs: Long = 0L,
     val isFavorite: Boolean = false,
     val error: String? = null,
-    /** Taille de la file d'attente (0 = pas encore construite). */
+    // File d'attente
+    val queue: List<Song> = emptyList(),
     val queueSize: Int = 0,
-    /** Position dans la file (0-based). */
     val currentQueueIndex: Int = 0,
+    // Modes lecture
+    val shuffleEnabled: Boolean = false,
+    val repeatMode: RepeatMode = RepeatMode.OFF,
+    // Paroles
+    val lyricsState: LyricsUiState = LyricsUiState.Idle,
 )
 
 // ─── ViewModel ─────────────────────────────────────────────────────────────────
@@ -37,16 +57,17 @@ class PlayerViewModel(
     private val songHolder: SelectedSongHolder,
     private val playerController: PlayerController,
     private val libraryRepo: LibraryRepository,
+    private val lyricsRepo: LyricsRepository,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(PlayerUiState())
     val uiState: StateFlow<PlayerUiState> = _uiState.asStateFlow()
 
-    /** Job annulé à chaque changement de chanson pour ne suivre que le favori courant. */
     private var favoriteJob: Job? = null
+    private var lyricsJob: Job?   = null
 
     init {
-        // ── 1. Synchroniser isPlaying / position / durée / queue / morceau courant ──
+        // ── Synchroniser l'état du controller → UI ───────────────────────────
         viewModelScope.launch {
             playerController.state.collect { s ->
                 val prevSong = _uiState.value.song
@@ -56,36 +77,37 @@ class PlayerViewModel(
                     isPlaying         = s.isPlaying,
                     currentPositionMs = s.currentPositionMs,
                     durationMs        = s.durationMs,
+                    queue             = s.queue,
                     queueSize         = s.queueSize,
                     currentQueueIndex = s.currentQueueIndex,
-                    // Si le controller a un morceau courant (y compris après auto-advance),
-                    // on le reflète dans l'UI même si loadAndPlay n'a pas été appelé.
-                    song = newSong ?: it.song,
+                    shuffleEnabled    = s.shuffleEnabled,
+                    repeatMode        = s.repeatMode,
+                    song              = newSong ?: it.song,
                 )}
 
-                // Abonnement favori mis à jour quand le morceau change (auto-advance inclus)
+                // Morceau changé (auto-advance inclus) → favoris + paroles
                 if (newSong != null && newSong.id != prevSong?.id) {
                     observeFavorite(newSong)
+                    loadLyrics(newSong)
                 }
             }
         }
 
-        // ── 2. Charger la chanson déposée par la navigation ──────────────────────
+        // ── Charger la chanson déposée par la navigation ─────────────────────
         val pending = songHolder.current
         if (pending != null) {
-            songHolder.current = null   // consommer pour éviter un double-load
+            songHolder.current = null
             loadAndPlay(pending)
         } else {
-            // Reconstituer l'état si l'utilisateur revient sur PlayerScreen
-            // sans avoir sélectionné un nouveau morceau (e.g. tap sur MiniPlayer)
             playerController.state.value.currentSong?.let { current ->
                 _uiState.update { it.copy(song = current) }
                 observeFavorite(current)
+                loadLyrics(current)
             }
         }
     }
 
-    // ─── Actions ──────────────────────────────────────────────────────────────
+    // ─── Actions publiques ────────────────────────────────────────────────────
 
     fun loadAndPlay(song: Song) {
         viewModelScope.launch {
@@ -97,17 +119,14 @@ class PlayerViewModel(
                 libraryRepo.logHistory(song)
                 _uiState.update { it.copy(isLoadingAudio = false) }
 
-                // ── Construction de la file d'attente en arrière-plan ────────────
-                // Recherche des morceaux de l'artiste → queue = [song courant] + [résultats]
+                // Queue en arrière-plan (morceaux similaires)
                 launch {
                     try {
                         val related = repository.search(song.artist)
                             .filter { it.id != song.id }
                             .take(20)
                         playerController.setQueue(listOf(song) + related, startIndex = 0)
-                    } catch (_: Exception) {
-                        // File non construite → pas grave, l'écoute continue
-                    }
+                    } catch (_: Exception) {}
                 }
 
             } catch (e: Exception) {
@@ -121,20 +140,45 @@ class PlayerViewModel(
         }
     }
 
-    fun togglePlayPause() = playerController.togglePlayPause()
+    // Lecture
+    fun togglePlayPause()  = playerController.togglePlayPause()
+    fun seekTo(ms: Long)   = playerController.seekTo(ms)
+    fun skipToNext()       = playerController.skipToNext()
+    fun skipToPrevious()   = playerController.skipToPrevious()
 
-    fun seekTo(positionMs: Long) = playerController.seekTo(positionMs)
+    // File d'attente
+    fun addToQueue(song: Song)       = playerController.addToQueue(song)
+    fun removeFromQueue(index: Int)  = playerController.removeFromQueue(index)
 
-    fun skipToNext() = playerController.skipToNext()
+    // Shuffle / Repeat
+    fun toggleShuffle()   = playerController.toggleShuffle()
+    fun cycleRepeatMode() = playerController.cycleRepeatMode()
 
-    fun skipToPrevious() = playerController.skipToPrevious()
-
+    // Favoris
     fun toggleFavorite() {
         val song = _uiState.value.song ?: return
         viewModelScope.launch { libraryRepo.toggleFavorite(song) }
     }
 
-    // ─── Privé ────────────────────────────────────────────────────────────────
+    // ─── Paroles ─────────────────────────────────────────────────────────────
+
+    private fun loadLyrics(song: Song) {
+        lyricsJob?.cancel()
+        _uiState.update { it.copy(lyricsState = LyricsUiState.Loading) }
+        lyricsJob = viewModelScope.launch {
+            val result = lyricsRepo.getLyrics(song.artist, song.title, song.durationSeconds)
+            _uiState.update {
+                it.copy(lyricsState = when (result) {
+                    is LyricsResult.Synced       -> LyricsUiState.Synced(result.lines)
+                    is LyricsResult.Plain        -> LyricsUiState.Plain(result.text)
+                    LyricsResult.Instrumental    -> LyricsUiState.Instrumental
+                    LyricsResult.NotFound        -> LyricsUiState.NotFound
+                })
+            }
+        }
+    }
+
+    // ─── Privé ───────────────────────────────────────────────────────────────
 
     private fun observeFavorite(song: Song) {
         favoriteJob?.cancel()

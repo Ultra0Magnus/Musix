@@ -16,6 +16,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.material.icons.outlined.PlaylistAdd
+import androidx.compose.material.icons.outlined.QueueMusic
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
@@ -45,7 +46,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.louis.musix.data.repo.LibraryRepository
 import com.louis.musix.domain.model.Playlist
 import com.louis.musix.domain.model.Song
-import kotlinx.coroutines.flow.first
+import com.louis.musix.player.PlayerController
 import com.louis.musix.ui.components.SongRow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -60,6 +61,7 @@ fun SearchScreen(
 ) {
     val viewModel: SearchViewModel = koinViewModel()
     val libraryRepo: LibraryRepository = koinInject()
+    val playerController: PlayerController = koinInject()
 
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val query by viewModel.query.collectAsStateWithLifecycle()
@@ -115,6 +117,19 @@ fun SearchScreen(
                     )
                     Spacer(Modifier.size(8.dp))
                     Text(if (isFavoriteSong) "Retirer des favoris" else "Ajouter aux favoris")
+                }
+
+                // Bouton ajouter à la file d'attente
+                TextButton(
+                    onClick = {
+                        playerController.addToQueue(optionsSong!!)
+                        showSheet = false
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Icon(Icons.Outlined.QueueMusic, contentDescription = null)
+                    Spacer(Modifier.size(8.dp))
+                    Text("Ajouter à la file d'attente")
                 }
 
                 // Bouton ajouter a une playlist

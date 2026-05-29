@@ -4,80 +4,140 @@ Ce readme n'est plus à jour, merci de ne pas en tenir compte
 
 Application Android de streaming musical via YouTube (NewPipeExtractor). Usage personnel, sideload APK.
 
-## État actuel : Phase 1 — squelette navigable
+**Version actuelle : v0.6.0** — Shuffle / Repeat / File d'attente / Paroles synchronisées
 
-Ce que tu obtiens en lançant l'app maintenant :
-- Écran d'accueil sombre type Spotify
-- BottomNavigation avec 3 onglets (Accueil / Recherche / Bibliothèque)
-- Navigation fonctionnelle entre 3 écrans placeholders
+---
 
-Les phases suivantes ajouteront la recherche YouTube, la lecture audio, le service background, et les playlists Room.
+## Fonctionnalités
 
-## Mise en route (débutant complet)
+### Lecture
+- Streaming audio YouTube (pas de vidéo, juste l'audio)
+- Lecture en **arrière-plan** avec notification de contrôle (Media3 / MediaSession)
+- **Mini-player** persistant en bas de l'écran (slide animé à l'apparition)
+- **File d'attente automatique** : après un morceau, les titres similaires de l'artiste sont chargés
+- **Shuffle** : mélange la file d'attente, chanson courante conservée en tête
+- **Repeat** : trois modes (OFF → Tout → Un seul)
+- Contrôles : lecture/pause, suivant, précédent (< 3s → restart, sinon morceau précédent)
 
-### 1. Installer Android Studio
-- Télécharge **Android Studio** (canal stable) : https://developer.android.com/studio
-- Lance l'installeur, accepte les options par défaut.
-- Au premier lancement, accepte le téléchargement des SDK Android (compte ~5 Go).
+### Paroles
+- Récupération automatique via [LRCLIB](https://lrclib.net) (sans clé API)
+- **Paroles synchronisées** : auto-scroll sur la ligne courante en temps réel
+- Fallback texte brut si pas de timestamps disponibles
+- Détection morceaux instrumentaux
 
-### 2. Activer le débogage USB sur ton téléphone (recommandé)
-- *Réglages* → *À propos du téléphone* → tape 7 fois sur **Numéro de build** (active les options dev).
-- *Options développeur* → activer **Débogage USB**.
-- Branche le téléphone en USB, accepte la clé RSA sur le téléphone.
+### Recherche
+- Recherche YouTube via NewPipeExtractor
+- Options par morceau : favoris, **ajouter à la file d'attente**, ajouter à une playlist
+- Clic sur un artiste → page artiste
 
-> Alternative : créer un appareil virtuel (AVD) dans Android Studio (*Tools* → *Device Manager*). Lent au démarrage mais marche sans téléphone.
+### Pages Artiste / Album
+- 15–20 titres populaires de l'artiste
+- Albums avec artwork, nom et nombre de pistes
+- Clic sur un album → liste des pistes de l'album (YouTube Music)
 
-### 3. Ouvrir le projet
-- Lance Android Studio → *File* → *Open* → sélectionne le dossier `C:\Users\louis\Desktop\projets\Musix`.
-- Android Studio détecte le projet Gradle et lance un **sync** automatique (télécharge toutes les dépendances : Compose, Media3, NewPipeExtractor, etc.). **Compte 5-15 minutes au premier sync**.
-- Si une popup propose "Update Gradle Plugin", refuse pour l'instant (les versions sont déjà alignées dans le projet).
+### Bibliothèque (Room / SQLite)
+- **Favoris** : ajouter/retirer depuis n'importe quel écran
+- **Historique** d'écoute
+- **Playlists** : créer, renommer, supprimer, ajouter/retirer des titres
 
-### 4. Lancer l'app
-- En haut, sélectionne ton téléphone (ou l'AVD) dans le menu déroulant à côté du bouton ▶.
-- Clique sur ▶ (*Run 'app'*) ou `Shift+F10`.
-- Au premier lancement, Gradle compile l'APK (1-3 min), puis l'installe et l'ouvre automatiquement.
+### Accueil
+- Carrousel "Continuer l'écoute" (historique récent)
+- Carrousel "Tes favoris"
+- Carrousel "Tendances YouTube" (avec skeletons de chargement)
 
-### Tu dois voir
-- Une appli avec fond noir et le titre "Accueil" centré.
-- En bas, 3 onglets : Accueil / Recherche / Bibliothèque.
-- Tapper sur chaque onglet change l'écran (chaque écran affiche son nom + une note "bientôt").
+### Import Spotify
+- Connexion OAuth2 PKCE
+- Import des playlists Spotify → playlists Musix (matching YouTube automatique)
 
-## Architecture (résumé)
+### Player Screen
+- **Gradient de couleur** extrait de l'artwork via Palette (transition animée)
+- Tap sur l'artiste → page artiste
+- Sheet "File d'attente" : visualiser et retirer des titres
+- Sheet "Paroles" : paroles synchronisées ou texte brut
+
+---
+
+## Installation (sideload APK)
+
+1. Télécharge le dernier APK depuis les [Releases GitHub](../../releases)
+2. Sur Android : *Réglages* → *Applications* → *Installer des applis inconnues* → autorise ton navigateur/gestionnaire de fichiers
+3. Ouvre l'APK téléchargé, accepte l'installation
+4. Lance **Musix**
+
+---
+
+## Mise en route (développement)
+
+### Prérequis
+- **Android Studio** (canal stable) : https://developer.android.com/studio
+- SDK Android API 26+ (téléchargé automatiquement au premier sync Gradle)
+
+### Lancer le projet
+1. *File* → *Open* → sélectionne le dossier `Musix`
+2. Attends le **Gradle sync** (5–15 min au premier lancement)
+3. Sélectionne ton téléphone ou un AVD dans la barre d'outils
+4. ▶ *Run 'app'* (`Shift+F10`)
+
+### Dépannage
+- **Sync Gradle échoue** : *File* → *Invalidate Caches* → *Invalidate and Restart*
+- **NewPipeExtractor introuvable** : vérifier `maven { url = uri("https://jitpack.io") }` dans `settings.gradle.kts`
+- **Téléphone non détecté** : activer *Débogage USB* dans les Options développeur, changer de câble si besoin
+
+---
+
+## Architecture
 
 ```
 com.louis.musix
-├── MusixApp.kt            Application : init Koin (et plus tard NewPipe)
-├── MainActivity.kt        Hôte Compose : Scaffold + NavHost + BottomBar
-├── di/AppModule.kt        Module Koin (sera rempli aux prochaines phases)
-├── ui/
-│   ├── theme/             Palette + thème sombre forcé
-│   ├── navigation/        Routes, NavHost, BottomBar
-│   ├── components/        Composables réutilisables
-│   └── screens/{home,search,library}/  Écrans placeholders
-└── (à venir)
-    ├── data/newpipe/      Phase 2 : YouTubeRepository
-    ├── player/            Phase 4 : MediaSessionService + PlayerController
-    └── data/local/        Phase 5 : Room (playlists, favoris, historique)
+├── MusixApp.kt                 Application : init Koin + NewPipe
+├── MainActivity.kt             Hôte Compose : Scaffold + NavHost + BottomBar
+├── di/AppModule.kt             Module Koin (tous les singletons et ViewModels)
+│
+├── data/
+│   ├── newpipe/                YouTubeRepository (search, audio URL, trending, artiste, albums)
+│   ├── lyrics/                 LyricsRepository (LRCLIB — paroles sync + plain)
+│   ├── local/                  Room : MusixDatabase, DAOs (song, favorite, history, playlist)
+│   ├── repo/                   LibraryRepository (favoris, historique, playlists)
+│   ├── spotify/                SpotifyAuthManager + SpotifyRepository (OAuth2 PKCE)
+│   └── SelectedSongHolder.kt   Passeur de chanson vers le PlayerScreen (nav)
+│
+├── domain/model/               Song, LyricLine, ArtistAlbum, Playlist, ...
+│
+├── player/
+│   ├── MusixPlayerService.kt   MediaSessionService (lecture background + notification)
+│   ├── PlayerController.kt     File d'attente, shuffle, repeat, auto-advance
+│   └── RepeatMode.kt           Enum OFF / ALL / ONE
+│
+└── ui/
+    ├── theme/                  Palette + thème sombre forcé
+    ├── navigation/             Routes, NavHost, BottomBar
+    ├── components/             SongRow, SongCard, ShimmerBox, MiniPlayer, ...
+    └── screens/
+        ├── home/               HomeScreen + HomeViewModel
+        ├── search/             SearchScreen + SearchViewModel
+        ├── player/             PlayerScreen + PlayerViewModel
+        ├── library/            LibraryScreen + LibraryViewModel
+        ├── artist/             ArtistScreen, AlbumDetailScreen + ViewModels
+        ├── playlist/           PlaylistDetailScreen + ViewModel
+        └── spotify/            SpotifyImportScreen + ViewModel
 ```
+
+---
 
 ## Roadmap
 
-- ✅ **Phase 1** : Squelette navigable (actuel)
-- ⏳ **Phase 2** : Recherche YouTube via NewPipeExtractor
-- ⏳ **Phase 3** : Lecture audio (player simple)
-- ⏳ **Phase 4** : Service background + notification + mini-player
-- ⏳ **Phase 5** : Playlists, favoris, historique (Room)
-- ⏳ **Phase 6** : Accueil/découverte + polish UI
+- ✅ **Phase 1** — Squelette navigable (thème sombre, navigation, BottomBar)
+- ✅ **Phase 2** — Recherche YouTube (NewPipeExtractor)
+- ✅ **Phase 3** — Lecture audio (PlayerScreen, SelectedSongHolder)
+- ✅ **Phase 4** — Service background + notification + MiniPlayer (Media3)
+- ✅ **Phase 5** — Bibliothèque Room (favoris, historique, playlists)
+- ✅ **Phase 6** — HomeScreen, skeletons, gradient artwork, AnimatedVisibility MiniPlayer
+- ✅ **Phase 7** — Import Spotify (OAuth2 PKCE, matching YouTube)
+- ✅ **Phase 8** — File d'attente auto, avance automatique, pages Artiste + Album
+- ✅ **Phase 9** — Shuffle, Repeat, file d'attente éditable, paroles synchronisées (LRCLIB)
 
-Détails complets dans le plan : `C:\Users\louis\.claude\plans\j-ai-besoin-que-tu-radiant-orbit.md`
+---
 
-## Si quelque chose casse
+## Licence
 
-- **Sync Gradle échoue** : *File* → *Invalidate Caches* → *Invalidate and Restart*.
-- **NewPipeExtractor pas trouvé** : vérifier que `maven { url = uri("https://jitpack.io") }` est bien dans `settings.gradle.kts`.
-- **AVD ne démarre pas** : essayer une image système plus légère (API 34, sans Google Services).
-- **Téléphone non détecté** : changer de câble USB (certains câbles ne sont que pour la charge), réactiver le débogage USB.
-
-## Pour la suite
-
-Dis-moi quand l'app affiche les 3 onglets sur ton téléphone — on enchaîne sur la Phase 2 (recherche YouTube).
+MIT — usage personnel uniquement. NewPipeExtractor est soumis à sa propre licence GPL-3.0.
