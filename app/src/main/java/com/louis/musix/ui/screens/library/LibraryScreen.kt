@@ -63,7 +63,7 @@ fun LibraryScreen(
     val history by viewModel.history.collectAsStateWithLifecycle()
 
     var selectedTab by remember { mutableIntStateOf(0) }
-    val tabs = listOf("Playlists", "Favorites", "History")
+    val tabs = listOf("Playlists", "Favorites", "History", "Downloads")
 
     // Create playlist dialog
     var showCreateDialog by remember { mutableStateOf(false) }
@@ -127,6 +127,7 @@ fun LibraryScreen(
                 0 -> PlaylistsTab(playlists, onPlaylistClick, viewModel::deletePlaylist, onSpotifyImportClick)
                 1 -> FavoritesTab(favorites, onSongClick, viewModel::removeFavorite)
                 2 -> HistoryTab(history, onSongClick, viewModel::clearHistory)
+                3 -> DownloadsTab(viewModel.downloaded.collectAsStateWithLifecycle().value, onSongClick)
             }
         }
     }
@@ -313,6 +314,28 @@ private fun HistoryTab(
                         color = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f),
                     )
                 }
+            }
+        }
+    }
+}
+
+// ─── Downloads Tab ────────────────────────────────────────────────────────────
+
+@Composable
+private fun DownloadsTab(
+    downloaded: List<Song>,
+    onSongClick: (Song) -> Unit,
+) {
+    if (downloaded.isEmpty()) {
+        EmptyState("No downloads yet\nOffline music will appear here")
+    } else {
+        LazyColumn(modifier = Modifier.fillMaxSize()) {
+            items(downloaded, key = { it.id }) { song ->
+                SongRow(song = song, onClick = onSongClick)
+                HorizontalDivider(
+                    modifier = Modifier.padding(horizontal = 16.dp),
+                    color = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f),
+                )
             }
         }
     }

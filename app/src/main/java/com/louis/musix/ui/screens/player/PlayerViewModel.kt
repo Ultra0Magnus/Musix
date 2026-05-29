@@ -3,6 +3,7 @@ package com.louis.musix.ui.screens.player
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.louis.musix.data.SelectedSongHolder
+import com.louis.musix.data.download.DownloadManager
 import com.louis.musix.data.lyrics.LyricsRepository
 import com.louis.musix.data.lyrics.LyricsResult
 import com.louis.musix.data.newpipe.YouTubeRepository
@@ -58,6 +59,7 @@ class PlayerViewModel(
     private val playerController: PlayerController,
     private val libraryRepo: LibraryRepository,
     private val lyricsRepo: LyricsRepository,
+    private val downloadManager: DownloadManager,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(PlayerUiState())
@@ -125,7 +127,11 @@ class PlayerViewModel(
             _uiState.update { it.copy(song = song, isLoadingAudio = true, error = null) }
 
             try {
-                val audioUrl = repository.getAudioStreamUrl(song.videoUrl)
+                val audioUrl = if (song.isDownloaded && song.localFilePath != null) {
+                    song.localFilePath
+                } else {
+                    repository.getAudioStreamUrl(song.videoUrl)
+                }
                 playerController.setAndPlay(song, audioUrl)
                 libraryRepo.logHistory(song)
                 _uiState.update { it.copy(isLoadingAudio = false) }
@@ -161,7 +167,11 @@ class PlayerViewModel(
         viewModelScope.launch {
             _uiState.update { it.copy(song = song, isLoadingAudio = true, error = null) }
             try {
-                val audioUrl = repository.getAudioStreamUrl(song.videoUrl)
+                val audioUrl = if (song.isDownloaded && song.localFilePath != null) {
+                    song.localFilePath
+                } else {
+                    repository.getAudioStreamUrl(song.videoUrl)
+                }
                 playerController.setAndPlay(song, audioUrl)
                 libraryRepo.logHistory(song)
                 playerController.setQueue(songs, startIndex = startIndex)
@@ -195,6 +205,17 @@ class PlayerViewModel(
     fun toggleFavorite() {
         val song = _uiState.value.song ?: return
         viewModelScope.launch { libraryRepo.toggleFavorite(song) }
+    }
+
+    // Downloads
+    fun toggleDownload() {
+        val song = _uiState.value.song ?: return
+        viewModelScope.launch {
+            downloadManager.toggleDownload(song)
+            // Reload song to get updated state (isDownloaded)
+            val updatedSong = libraryRepo.getSong(song.id) ?: song
+            _uiState.update { it.copy(song = updatedSong) }
+        }
     }
 
     // ─── Lyrics ───────────────────────────────────────────────────────────────

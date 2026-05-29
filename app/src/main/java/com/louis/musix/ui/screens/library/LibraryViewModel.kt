@@ -11,24 +11,29 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
 class LibraryViewModel(
-    private val repo: LibraryRepository,
+    private val repository: LibraryRepository,
 ) : ViewModel() {
 
-    val playlists: StateFlow<List<Playlist>> = repo.playlists
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+    val playlists: StateFlow<List<Playlist>> = repository.playlists
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    val favorites: StateFlow<List<Song>> = repo.favoriteSongs
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+    val favorites: StateFlow<List<Song>> = repository.favoriteSongs
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    val history: StateFlow<List<Song>> = repo.history
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
-
-    // ─── Playlists ─────────────────────────────────────────────────────────────
+    val history: StateFlow<List<Song>> = repository.history
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+        
+    val downloaded: StateFlow<List<Song>> = repository.downloadedSongs
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     fun createPlaylist(name: String) {
         if (name.isBlank()) return
-        viewModelScope.launch { repo.createPlaylist(name) }
+        viewModelScope.launch {
+            repository.createPlaylist(name)
+        }
     }
+}
+
 
     fun deletePlaylist(playlistId: Long) {
         viewModelScope.launch { repo.deletePlaylist(playlistId) }

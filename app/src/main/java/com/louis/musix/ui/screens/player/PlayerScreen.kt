@@ -27,7 +27,9 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.outlined.ArrowBackIosNew
 import androidx.compose.material.icons.outlined.Close
+import androidx.compose.material.icons.outlined.DownloadForOffline
 import androidx.compose.material.icons.outlined.FavoriteBorder
+import androidx.compose.material.icons.filled.DownloadDone
 import androidx.compose.material.icons.outlined.Pause
 import androidx.compose.material.icons.outlined.PlayArrow
 import androidx.compose.material.icons.outlined.QueueMusic
@@ -176,7 +178,7 @@ fun PlayerScreen(
 
         Spacer(Modifier.height(24.dp))
 
-        // Title + artist + favorite
+        // Title + artist + favorite + download
         Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Column(modifier = Modifier.weight(1f)) {
                 Text(
@@ -200,6 +202,20 @@ fun PlayerScreen(
                     },
                 )
             }
+            
+            // Download Button
+            IconButton(onClick = viewModel::toggleDownload, enabled = state.song != null) {
+                val isDownloaded = state.song?.isDownloaded == true
+                Icon(
+                    imageVector = if (isDownloaded) Icons.Filled.DownloadDone else Icons.Outlined.DownloadForOffline,
+                    contentDescription = if (isDownloaded) "Remove download" else "Download",
+                    tint = if (isDownloaded) MaterialTheme.colorScheme.primary
+                           else MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(28.dp),
+                )
+            }
+
+            // Favorite Button
             IconButton(onClick = viewModel::toggleFavorite, enabled = state.song != null) {
                 Icon(
                     imageVector = if (state.isFavorite) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,

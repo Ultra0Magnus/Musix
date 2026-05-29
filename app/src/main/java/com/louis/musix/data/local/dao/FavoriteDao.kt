@@ -23,7 +23,7 @@ interface FavoriteDao {
 
     /** Tous les morceaux favoris, triés du plus récent. */
     @Query("""
-        SELECT s.id, s.title, s.artist, s.thumbnailUrl, s.durationSeconds, s.videoUrl
+        SELECT s.id, s.title, s.artist, s.thumbnailUrl, s.durationSeconds, s.videoUrl, s.isDownloaded, s.localFilePath
         FROM favorites f
         INNER JOIN songs s ON f.songId = s.id
         ORDER BY f.favoritedAt DESC

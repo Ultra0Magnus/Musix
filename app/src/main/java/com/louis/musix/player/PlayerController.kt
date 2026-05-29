@@ -11,6 +11,7 @@ import androidx.media3.common.Player
 import androidx.media3.session.MediaController
 import androidx.media3.session.SessionToken
 import com.louis.musix.data.newpipe.YouTubeRepository
+import com.louis.musix.data.repo.LibraryRepository
 import com.louis.musix.domain.model.Song
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -63,6 +64,7 @@ data class PlayerControllerState(
 class PlayerController(
     private val context: Context,
     private val youtubeRepo: YouTubeRepository,
+    private val libraryRepo: LibraryRepository,
 ) {
 
     private var controller: MediaController? = null
@@ -346,9 +348,14 @@ class PlayerController(
 
     private suspend fun autoAdvanceTo(song: Song) {
         try {
-            Log.d(TAG, "Fetching audio URL for \"${song.title}\"…")
-            val url = youtubeRepo.getAudioStreamUrl(song.videoUrl)
-            setAndPlay(song, url)
+            val audioUrl = if (song.isDownloaded && song.localFilePath != null) {
+                Log.d(TAG, "Playing downloaded audio for \"${song.title}\"")
+                song.localFilePath
+            } else {
+                Log.d(TAG, "Fetching audio URL for \"${song.title}\"…")
+                youtubeRepo.getAudioStreamUrl(song.videoUrl)
+            }
+            setAndPlay(song, audioUrl)
         } catch (e: Exception) {
             Log.e(TAG, "autoAdvanceTo(\"${song.title}\") failed: ${e.message}")
         }

@@ -30,6 +30,17 @@ class LibraryRepository(
 
     suspend fun cacheSong(song: Song) = songDao.upsert(SongEntity.fromDomain(song))
 
+    suspend fun getSong(id: String): Song? = songDao.getSongById(id)?.toDomain()
+
+    // ─── Downloads ────────────────────────────────────────────────────────────
+
+    val downloadedSongs: Flow<List<Song>> = 
+        songDao.getDownloadedSongs().map { list -> list.map { it.toDomain() } }
+
+    suspend fun updateDownloadStatus(id: String, isDownloaded: Boolean, localPath: String?) {
+        songDao.updateDownloadStatus(id, isDownloaded, localPath)
+    }
+
     // ─── Favorites ────────────────────────────────────────────────────────────
 
     val favoriteSongs: Flow<List<Song>> =
@@ -57,6 +68,8 @@ class LibraryRepository(
                 thumbnailUrl    = entry.thumbnailUrl,
                 durationSeconds = entry.durationSeconds,
                 videoUrl        = entry.videoUrl,
+                isDownloaded    = entry.isDownloaded,
+                localFilePath   = entry.localFilePath,
             )
         }
     }

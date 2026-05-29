@@ -22,7 +22,7 @@ import com.louis.musix.data.local.entity.SongEntity
         PlaylistEntity::class,
         PlaylistSongEntity::class,
     ],
-    version = 1,
+    version = 2,
     exportSchema = false,
 )
 abstract class MusixDatabase : RoomDatabase() {

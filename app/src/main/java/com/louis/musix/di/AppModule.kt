@@ -1,6 +1,7 @@
 package com.louis.musix.di
 
 import com.louis.musix.data.SelectedSongHolder
+import com.louis.musix.data.download.DownloadManager
 import com.louis.musix.data.local.MusixDatabase
 import com.louis.musix.data.lyrics.LyricsRepository
 import com.louis.musix.data.newpipe.YouTubeRepository
@@ -40,15 +41,18 @@ val appModule = module {
     single { get<MusixDatabase>().playlistDao() }
     single { LibraryRepository(get(), get(), get(), get()) }
 
+    // ─── Downloads ────────────────────────────────────────────────────────────
+    single { DownloadManager(androidContext(), get(), get()) }
+
     // ─── Background player ────────────────────────────────────────────────────
-    single { PlayerController(androidContext(), get()) }
+    single { PlayerController(androidContext(), get(), get()) }
 
     // ─── Lyrics ───────────────────────────────────────────────────────────────
     single { LyricsRepository() }
 
     // ─── ViewModels ───────────────────────────────────────────────────────────
     viewModel { SearchViewModel(get()) }
-    viewModel { PlayerViewModel(get(), get(), get(), get(), get()) }
+    viewModel { PlayerViewModel(get(), get(), get(), get(), get(), get()) }
     viewModel { LibraryViewModel(get()) }
     viewModel { HomeViewModel(get(), get()) }
     viewModel { SpotifyImportViewModel(get(), get(), get(), get()) }

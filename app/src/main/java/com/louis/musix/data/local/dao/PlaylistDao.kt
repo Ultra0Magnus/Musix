@@ -54,7 +54,7 @@ interface PlaylistDao {
 
     /** Songs from a playlist sorted by position. */
     @Query("""
-        SELECT s.id, s.title, s.artist, s.thumbnailUrl, s.durationSeconds, s.videoUrl
+        SELECT s.id, s.title, s.artist, s.thumbnailUrl, s.durationSeconds, s.videoUrl, s.isDownloaded, s.localFilePath
         FROM playlist_songs ps
         INNER JOIN songs s ON ps.songId = s.id
         WHERE ps.playlistId = :playlistId
