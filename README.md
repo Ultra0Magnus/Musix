@@ -1,7 +1,5 @@
 # Musix
 
-Ce readme n'est plus à jour, merci de ne pas en tenir compte
-
 Application Android de streaming musical via YouTube (NewPipeExtractor). Usage personnel, sideload APK.
 
 **Version actuelle : v0.6.0** — Shuffle / Repeat / File d'attente / Paroles synchronisées
