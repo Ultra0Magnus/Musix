@@ -90,6 +90,9 @@ class LibraryRepository(
     suspend fun getPlaylistName(playlistId: Long): String? =
         playlistDao.getPlaylistName(playlistId)
 
+    suspend fun getPlaylistIdByName(name: String): Long? =
+        playlistDao.getPlaylistIdByName(name)
+
     suspend fun addSongToPlaylist(playlistId: Long, song: Song) {
         cacheSong(song)
         val position = playlistDao.getSongCount(playlistId)

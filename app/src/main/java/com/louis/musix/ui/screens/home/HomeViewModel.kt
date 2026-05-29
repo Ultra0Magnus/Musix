@@ -9,17 +9,16 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
-/**
- * State for the "Trending" carousel — loaded asynchronously via NewPipeExtractor.
- */
-sealed interface TrendingState {
-    data object Loading : TrendingState
-    data class Success(val songs: List<Song>) : TrendingState
-    data class Error(val message: String) : TrendingState
+sealed interface SuggestionsState {
+    data object Hidden : SuggestionsState
+    data object Loading : SuggestionsState
+    data class Success(val songs: List<Song>, val artists: List<String>) : SuggestionsState
+    data class Error(val message: String) : SuggestionsState
 }
 
 class HomeViewModel(
@@ -36,21 +35,68 @@ class HomeViewModel(
         .map { it.take(10) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
-    // Network carousel: YouTube trending, fetched once at startup
-    private val _trending = MutableStateFlow<TrendingState>(TrendingState.Loading)
-    val trending: StateFlow<TrendingState> = _trending.asStateFlow()
+    // Network carousel: Suggestions based on Spotify Top 50
+    private val _suggestions = MutableStateFlow<SuggestionsState>(SuggestionsState.Hidden)
+    val suggestions: StateFlow<SuggestionsState> = _suggestions.asStateFlow()
 
     init {
-        loadTrending()
+        loadSuggestions()
     }
 
-    fun loadTrending() {
-        _trending.value = TrendingState.Loading
+    private fun loadSuggestions() {
         viewModelScope.launch {
-            _trending.value = try {
-                TrendingState.Success(youtubeRepo.getTrending())
+            _suggestions.value = SuggestionsState.Loading
+            try {
+                val playlistId = libraryRepo.getPlaylistIdByName("Spotify — Top 50 All Time")
+                if (playlistId == null) {
+                    _suggestions.value = SuggestionsState.Hidden
+                    return@launch
+                }
+
+                val top50Songs = libraryRepo.getPlaylistSongs(playlistId).first()
+                if (top50Songs.isEmpty()) {
+                    _suggestions.value = SuggestionsState.Hidden
+                    return@launch
+                }
+
+                val top50Ids = top50Songs.map { it.id }.toSet()
+                
+                // Get unique artists
+                val artists = top50Songs.map { it.artist }.distinct()
+                // Pick up to 5 random artists
+                val selectedArtists = artists.shuffled().take(5)
+
+                if (selectedArtists.isEmpty()) {
+                    _suggestions.value = SuggestionsState.Hidden
+                    return@launch
+                }
+
+                // Fetch suggestions from YouTube
+                val suggestedSongs = mutableListOf<Song>()
+                for (artist in selectedArtists) {
+                    try {
+                        val results = youtubeRepo.search(artist)
+                        suggestedSongs.addAll(results)
+                    } catch (e: Exception) {
+                        // Ignore individual artist search failure
+                    }
+                }
+
+                // Filter out songs already in Top 50, remove duplicates, and shuffle
+                val finalSuggestions = suggestedSongs
+                    .filter { !top50Ids.contains(it.id) }
+                    .distinctBy { it.id }
+                    .shuffled()
+                    .take(20)
+
+                if (finalSuggestions.isEmpty()) {
+                    _suggestions.value = SuggestionsState.Hidden
+                } else {
+                    _suggestions.value = SuggestionsState.Success(finalSuggestions, selectedArtists)
+                }
+
             } catch (e: Exception) {
-                TrendingState.Error(e.localizedMessage ?: "Network error")
+                _suggestions.value = SuggestionsState.Error(e.localizedMessage ?: "Unknown error")
             }
         }
     }

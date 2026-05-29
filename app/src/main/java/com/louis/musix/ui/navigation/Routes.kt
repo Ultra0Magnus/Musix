@@ -32,6 +32,8 @@ sealed class Routes(val route: String) {
         fun createRoute(name: String, playlistUrl: String) =
             "album?name=${Uri.encode(name)}&url=${Uri.encode(playlistUrl)}"
     }
+
+    data object Settings : Routes("settings")
 }
 
 data class BottomNavItem(

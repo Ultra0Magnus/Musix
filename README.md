@@ -2,7 +2,7 @@
 
 Personal Android music streaming app powered by YouTube (NewPipeExtractor). Distributed as a sideloaded APK — no Play Store.
 
-**Current version: v0.6.2** — Paginated search / Artist & Album pages / Shuffle / Repeat / Queue / Synced lyrics
+**Current version: v0.6.4** — Paginated search / Artist & Album pages / Shuffle / Repeat / Queue / Synced lyrics / Top 50 Suggestions / Settings
 
 ---
 
