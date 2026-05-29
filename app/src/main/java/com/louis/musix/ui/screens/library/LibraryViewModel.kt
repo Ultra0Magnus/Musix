@@ -32,22 +32,20 @@ class LibraryViewModel(
             repository.createPlaylist(name)
         }
     }
-}
-
 
     fun deletePlaylist(playlistId: Long) {
-        viewModelScope.launch { repo.deletePlaylist(playlistId) }
+        viewModelScope.launch { repository.deletePlaylist(playlistId) }
     }
 
     // ─── Favorites ────────────────────────────────────────────────────────────
 
     fun removeFavorite(song: Song) {
-        viewModelScope.launch { repo.toggleFavorite(song) }
+        viewModelScope.launch { repository.toggleFavorite(song) }
     }
 
     // ─── History ──────────────────────────────────────────────────────────────
 
     fun clearHistory() {
-        viewModelScope.launch { repo.clearHistory() }
+        viewModelScope.launch { repository.clearHistory() }
     }
 }

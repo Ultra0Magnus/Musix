@@ -44,5 +44,3 @@ data class SongEntity(
         )
     }
 }
-
-}

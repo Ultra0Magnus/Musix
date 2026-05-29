@@ -12,10 +12,12 @@ data class Song(
 ) {
     val durationText: String
         get() {
-            val m = durationSeconds / 60
-            val s = durationSeconds % 60
-            return String.format("%d:%02d", m, s)
+            return formatDuration(durationSeconds)
         }
 }
 
+fun formatDuration(durationSeconds: Long): String {
+    val m = durationSeconds / 60
+    val s = durationSeconds % 60
+    return String.format("%d:%02d", m, s)
 }
