@@ -19,7 +19,7 @@ sealed class SearchUiState {
     data class Success(
         val songs:         List<Song>,
         val nextPage:      Page?   = null,
-        val searchUrl:     String  = "",
+        val query:         String  = "",
         val isLoadingMore: Boolean = false,
     ) : SearchUiState()
     data class Error(val message: String) : SearchUiState()
@@ -47,6 +47,16 @@ class SearchViewModel(
         _query.value = newQuery
     }
 
+    /**
+     * Efface la requête et revient à l'écran d'accueil ([SearchUiState.Idle]),
+     * ce qui réaffiche l'historique des recherches récentes.
+     */
+    fun clearSearch() {
+        searchJob?.cancel()
+        _query.value   = ""
+        _uiState.value = SearchUiState.Idle
+    }
+
     fun onSearch() {
         val q = _query.value.trim()
         if (q.isEmpty()) return
@@ -63,9 +73,9 @@ class SearchViewModel(
                     _searchHistory.value = listOf(q) +
                         _searchHistory.value.filter { it != q }.take(9)
                     _uiState.value = SearchUiState.Success(
-                        songs     = result.songs,
-                        nextPage  = result.nextPage,
-                        searchUrl = result.searchUrl,
+                        songs    = result.songs,
+                        nextPage = result.nextPage,
+                        query    = result.query,
                     )
                 }
             } catch (e: Exception) {
@@ -85,11 +95,11 @@ class SearchViewModel(
         viewModelScope.launch {
             _uiState.value = current.copy(isLoadingMore = true)
             try {
-                val more = repository.searchMore(current.searchUrl, nextPage)
+                val more = repository.searchMore(current.query, nextPage)
                 _uiState.value = SearchUiState.Success(
                     songs         = current.songs + more.songs,
                     nextPage      = more.nextPage,
-                    searchUrl     = more.searchUrl,
+                    query         = more.query,
                     isLoadingMore = false,
                 )
             } catch (_: Exception) {

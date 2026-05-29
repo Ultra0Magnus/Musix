@@ -14,6 +14,7 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.material.icons.outlined.History
 import androidx.compose.material.icons.outlined.PlaylistAdd
@@ -204,11 +205,13 @@ fun SearchScreen(
                 Icon(Icons.Outlined.Search, contentDescription = null)
             },
             trailingIcon = {
-                IconButton(onClick = {
-                    keyboard?.hide()
-                    viewModel.onSearch()
-                }) {
-                    Icon(Icons.Outlined.Search, contentDescription = "Lancer la recherche")
+                if (query.isNotEmpty()) {
+                    IconButton(onClick = {
+                        keyboard?.hide()
+                        viewModel.clearSearch()
+                    }) {
+                        Icon(Icons.Outlined.Close, contentDescription = "Effacer la recherche")
+                    }
                 }
             },
             singleLine = true,

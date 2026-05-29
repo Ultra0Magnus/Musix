@@ -5,7 +5,6 @@ import com.louis.musix.domain.model.ArtistAlbum
 import com.louis.musix.domain.model.Song
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import org.schabi.newpipe.extractor.ListInfo
 import org.schabi.newpipe.extractor.MediaFormat
 import org.schabi.newpipe.extractor.Page
 import org.schabi.newpipe.extractor.ServiceList
@@ -31,9 +30,9 @@ class YouTubeRepository {
 
     /** Résultat paginé d'une recherche YouTube. */
     data class SearchResult(
-        val songs:     List<Song>,
-        val nextPage:  Page?,
-        val searchUrl: String,
+        val songs:    List<Song>,
+        val nextPage: Page?,
+        val query:    String,
     )
 
     /**
@@ -44,20 +43,25 @@ class YouTubeRepository {
         val handler = youtube.searchQHFactory.fromQuery(query, listOf("music_songs"), "")
         val info    = SearchInfo.getInfo(youtube, handler)
         SearchResult(
-            songs     = info.relatedItems.filterIsInstance<StreamInfoItem>().map { it.toSong() },
-            nextPage  = info.nextPage,
-            searchUrl = handler.url,
+            songs    = info.relatedItems.filterIsInstance<StreamInfoItem>().map { it.toSong() },
+            nextPage = info.nextPage,
+            query    = query,
         )
     }
 
-    /** Charge la page suivante à partir du token renvoyé par [searchPaged] ou [searchMore]. */
-    suspend fun searchMore(searchUrl: String, nextPage: Page): SearchResult =
+    /**
+     * Charge la page suivante. NewPipe a besoin du même [SearchQueryHandler] que la
+     * première page : on le reconstruit à partir de la requête d'origine ([query]),
+     * puis on passe le token [nextPage] renvoyé par [searchPaged] / [searchMore].
+     */
+    suspend fun searchMore(query: String, nextPage: Page): SearchResult =
         withContext(Dispatchers.IO) {
-            val more = ListInfo.getMoreItems(youtube, searchUrl, nextPage)
+            val handler = youtube.searchQHFactory.fromQuery(query, listOf("music_songs"), "")
+            val more    = SearchInfo.getMoreItems(youtube, handler, nextPage)
             SearchResult(
-                songs     = more.items.filterIsInstance<StreamInfoItem>().map { it.toSong() },
-                nextPage  = more.nextPage,
-                searchUrl = searchUrl,
+                songs    = more.items.filterIsInstance<StreamInfoItem>().map { it.toSong() },
+                nextPage = more.nextPage,
+                query    = query,
             )
         }
 
