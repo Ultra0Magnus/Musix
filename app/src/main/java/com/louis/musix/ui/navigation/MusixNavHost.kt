@@ -26,9 +26,21 @@ fun MusixNavHost(
 ) {
     val songHolder: SelectedSongHolder = koinInject()
 
-    /** Navigue vers le Player avec la chanson selectionnee. */
+    /** Navigue vers le Player avec une chanson isolée (auto-queue par artiste). */
     fun playSong(song: Song) {
         songHolder.current = song
+        navController.navigate(Routes.Player.route)
+    }
+
+    /**
+     * Navigue vers le Player en chargeant toute une liste comme file d'attente.
+     * Utilisé depuis les playlists et les albums — PAS d'auto-queue par artiste.
+     */
+    fun playFromList(songs: List<Song>, startIndex: Int) {
+        val song = songs.getOrNull(startIndex) ?: return
+        songHolder.current           = song
+        songHolder.pendingQueue      = songs
+        songHolder.pendingQueueIndex = startIndex
         navController.navigate(Routes.Player.route)
     }
 
@@ -82,9 +94,9 @@ fun MusixNavHost(
         ) { backStackEntry ->
             val playlistId = backStackEntry.arguments?.getLong("playlistId") ?: return@composable
             PlaylistDetailScreen(
-                playlistId = playlistId,
-                onBack = { navController.popBackStack() },
-                onSongClick = { song -> playSong(song) },
+                playlistId  = playlistId,
+                onBack      = { navController.popBackStack() },
+                onSongClick = { songs, index -> playFromList(songs, index) },
             )
         }
 

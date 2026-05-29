@@ -97,7 +97,18 @@ class PlayerViewModel(
         val pending = songHolder.current
         if (pending != null) {
             songHolder.current = null
-            loadAndPlay(pending)
+            val pendingQueue      = songHolder.pendingQueue
+            val pendingQueueIndex = songHolder.pendingQueueIndex
+            songHolder.pendingQueue      = null
+            songHolder.pendingQueueIndex = 0
+
+            if (pendingQueue != null) {
+                // Vient d'une playlist / album → file d'attente imposée, pas d'auto-queue
+                loadAndPlayQueue(pendingQueue, pendingQueueIndex)
+            } else {
+                // Lecture isolée → auto-queue par artiste
+                loadAndPlay(pending)
+            }
         } else {
             playerController.state.value.currentSong?.let { current ->
                 _uiState.update { it.copy(song = current) }
@@ -129,6 +140,32 @@ class PlayerViewModel(
                     } catch (_: Exception) {}
                 }
 
+            } catch (e: Exception) {
+                _uiState.update {
+                    it.copy(
+                        isLoadingAudio = false,
+                        error = "Impossible de charger : ${e.localizedMessage}",
+                    )
+                }
+            }
+        }
+    }
+
+    /**
+     * Joue [songs[startIndex]] et charge toute la liste comme file d'attente.
+     * Contrairement à [loadAndPlay], ne déclenche PAS l'auto-queue par artiste.
+     * Utilisé pour les playlists et les albums.
+     */
+    fun loadAndPlayQueue(songs: List<Song>, startIndex: Int = 0) {
+        val song = songs.getOrNull(startIndex) ?: return
+        viewModelScope.launch {
+            _uiState.update { it.copy(song = song, isLoadingAudio = true, error = null) }
+            try {
+                val audioUrl = repository.getAudioStreamUrl(song.videoUrl)
+                playerController.setAndPlay(song, audioUrl)
+                libraryRepo.logHistory(song)
+                playerController.setQueue(songs, startIndex = startIndex)
+                _uiState.update { it.copy(isLoadingAudio = false) }
             } catch (e: Exception) {
                 _uiState.update {
                     it.copy(

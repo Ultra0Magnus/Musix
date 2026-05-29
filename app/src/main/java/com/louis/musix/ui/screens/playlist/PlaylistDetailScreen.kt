@@ -8,7 +8,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.ArrowBackIosNew
 import androidx.compose.material.icons.outlined.Delete
@@ -41,7 +42,8 @@ import org.koin.core.parameter.parametersOf
 fun PlaylistDetailScreen(
     playlistId: Long,
     onBack: () -> Unit,
-    onSongClick: (Song) -> Unit,
+    /** [songs] = toute la playlist, [startIndex] = rang du morceau cliqué. */
+    onSongClick: (songs: List<Song>, startIndex: Int) -> Unit,
 ) {
     val viewModel: PlaylistDetailViewModel = koinViewModel(parameters = { parametersOf(playlistId) })
     val state by viewModel.uiState.collectAsStateWithLifecycle()
@@ -79,7 +81,7 @@ fun PlaylistDetailScreen(
             } else {
                 // Bouton "Tout lire"
                 Button(
-                    onClick = { state.songs.firstOrNull()?.let { onSongClick(it) } },
+                    onClick = { if (state.songs.isNotEmpty()) onSongClick(state.songs, 0) },
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 16.dp, vertical = 8.dp),
@@ -90,15 +92,23 @@ fun PlaylistDetailScreen(
                 }
 
                 LazyColumn(modifier = Modifier.fillMaxSize()) {
-                    items(state.songs, key = { it.id }) { song ->
+                    itemsIndexed(
+                        items = state.songs,
+                        key   = { index, song -> "${index}_${song.id}" },
+                    ) { index, song ->
+                        // ── Swipe-to-dismiss sécurisé ─────────────────────────
+                        // On n'utilise PAS confirmValueChange avec side-effect
+                        // (risque de suppression lors d'un recompose).
+                        // L'action est confirmée via LaunchedEffect sur currentValue.
                         val dismissState = rememberSwipeToDismissBoxState(
-                            confirmValueChange = { value ->
-                                if (value == SwipeToDismissBoxValue.EndToStart) {
-                                    viewModel.removeSong(song.id)
-                                    true
-                                } else false
-                            }
+                            positionalThreshold = { totalDistance -> totalDistance * 0.5f },
                         )
+                        LaunchedEffect(dismissState.currentValue) {
+                            if (dismissState.currentValue == SwipeToDismissBoxValue.EndToStart) {
+                                viewModel.removeSong(song.id)
+                            }
+                        }
+
                         SwipeToDismissBox(
                             state = dismissState,
                             backgroundContent = {
@@ -114,7 +124,10 @@ fun PlaylistDetailScreen(
                             },
                             enableDismissFromStartToEnd = false,
                         ) {
-                            SongRow(song = song, onClick = onSongClick)
+                            SongRow(
+                                song    = song,
+                                onClick = { onSongClick(state.songs, index) },
+                            )
                         }
                         HorizontalDivider(
                             modifier = Modifier.padding(horizontal = 16.dp),
