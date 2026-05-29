@@ -34,13 +34,13 @@ class LibraryViewModel(
         viewModelScope.launch { repo.deletePlaylist(playlistId) }
     }
 
-    // ─── Favoris ──────────────────────────────────────────────────────────────
+    // ─── Favorites ────────────────────────────────────────────────────────────
 
     fun removeFavorite(song: Song) {
         viewModelScope.launch { repo.toggleFavorite(song) }
     }
 
-    // ─── Historique ───────────────────────────────────────────────────────────
+    // ─── History ──────────────────────────────────────────────────────────────
 
     fun clearHistory() {
         viewModelScope.launch { repo.clearHistory() }

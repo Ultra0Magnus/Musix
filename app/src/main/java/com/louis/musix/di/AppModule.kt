@@ -32,7 +32,7 @@ val appModule = module {
     single { SpotifyAuthManager(androidContext()) }
     single { SpotifyRepository(get()) }
 
-    // ─── Base de donnees Room ─────────────────────────────────────────────────
+    // ─── Room database ────────────────────────────────────────────────────────
     single { MusixDatabase.create(androidContext()) }
     single { get<MusixDatabase>().songDao() }
     single { get<MusixDatabase>().favoriteDao() }
@@ -40,10 +40,10 @@ val appModule = module {
     single { get<MusixDatabase>().playlistDao() }
     single { LibraryRepository(get(), get(), get(), get()) }
 
-    // ─── Lecteur background ───────────────────────────────────────────────────
+    // ─── Background player ────────────────────────────────────────────────────
     single { PlayerController(androidContext(), get()) }
 
-    // ─── Paroles ──────────────────────────────────────────────────────────────
+    // ─── Lyrics ───────────────────────────────────────────────────────────────
     single { LyricsRepository() }
 
     // ─── ViewModels ───────────────────────────────────────────────────────────
@@ -54,6 +54,6 @@ val appModule = module {
     viewModel { SpotifyImportViewModel(get(), get(), get(), get()) }
     viewModel { ArtistViewModel(get()) }
     viewModel { AlbumDetailViewModel(get()) }
-    // PlaylistDetailViewModel prend l'id en parametre (koinViewModel { parametersOf(id) })
+    // PlaylistDetailViewModel takes the id as a parameter (koinViewModel { parametersOf(id) })
     viewModel { params -> PlaylistDetailViewModel(params.get(), get()) }
 }

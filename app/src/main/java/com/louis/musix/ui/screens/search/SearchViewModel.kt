@@ -11,7 +11,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import org.schabi.newpipe.extractor.Page
 
-// ─── État de l'écran de recherche ──────────────────────────────────────────────
+// ─── Search screen state ──────────────────────────────────────────────────────
 
 sealed class SearchUiState {
     data object Idle    : SearchUiState()
@@ -25,7 +25,7 @@ sealed class SearchUiState {
     data class Error(val message: String) : SearchUiState()
 }
 
-// ─── ViewModel ─────────────────────────────────────────────────────────────────
+// ─── ViewModel ────────────────────────────────────────────────────────────────
 
 class SearchViewModel(
     private val repository: YouTubeRepository
@@ -37,7 +37,7 @@ class SearchViewModel(
     private val _query = MutableStateFlow("")
     val query: StateFlow<String> = _query.asStateFlow()
 
-    /** Historique de session — 10 dernières recherches, pas de doublons. */
+    /** Session history — last 10 searches, no duplicates. */
     private val _searchHistory = MutableStateFlow<List<String>>(emptyList())
     val searchHistory: StateFlow<List<String>> = _searchHistory.asStateFlow()
 
@@ -48,8 +48,8 @@ class SearchViewModel(
     }
 
     /**
-     * Efface la requête et revient à l'écran d'accueil ([SearchUiState.Idle]),
-     * ce qui réaffiche l'historique des recherches récentes.
+     * Clears the query and returns to [SearchUiState.Idle],
+     * which shows the recent search history list.
      */
     fun clearSearch() {
         searchJob?.cancel()
@@ -67,9 +67,9 @@ class SearchViewModel(
             try {
                 val result = repository.searchPaged(q)
                 if (result.songs.isEmpty()) {
-                    _uiState.value = SearchUiState.Error("Aucun résultat pour « $q »")
+                    _uiState.value = SearchUiState.Error("No results for \"$q\"")
                 } else {
-                    // Ajouter à l'historique (pas de doublon, max 10)
+                    // Add to history (no duplicates, max 10)
                     _searchHistory.value = listOf(q) +
                         _searchHistory.value.filter { it != q }.take(9)
                     _uiState.value = SearchUiState.Success(
@@ -80,13 +80,13 @@ class SearchViewModel(
                 }
             } catch (e: Exception) {
                 _uiState.value = SearchUiState.Error(
-                    "Erreur : ${e.localizedMessage ?: "problème réseau"}"
+                    "Error: ${e.localizedMessage ?: "network issue"}"
                 )
             }
         }
     }
 
-    /** Charge la page suivante — ne fait rien si déjà en chargement ou pas de page suivante. */
+    /** Loads the next page — does nothing if already loading or no next page. */
     fun loadMore() {
         val current = _uiState.value as? SearchUiState.Success ?: return
         val nextPage = current.nextPage ?: return
@@ -103,13 +103,13 @@ class SearchViewModel(
                     isLoadingMore = false,
                 )
             } catch (_: Exception) {
-                // On remet l'état précédent sans le spinner
+                // Restore previous state without the spinner
                 _uiState.value = current.copy(isLoadingMore = false)
             }
         }
     }
 
-    /** Relance une recherche depuis l'historique. */
+    /** Re-runs a search from history. */
     fun searchFromHistory(query: String) {
         _query.value = query
         onSearch()

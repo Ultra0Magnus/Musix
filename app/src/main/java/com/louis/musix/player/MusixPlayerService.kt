@@ -7,37 +7,37 @@ import androidx.media3.session.MediaSession
 import androidx.media3.session.MediaSessionService
 
 /**
- * Service de lecture audio en arrière-plan.
+ * Background audio playback service.
  *
- * MediaSessionService (Media3) gère automatiquement :
- *  - La notification persistante avec titre / artiste / contrôles
- *  - Les contrôles sur l'écran de verrouillage
- *  - La compatibilité avec les casques Bluetooth (play/pause/skip)
- *  - Le WAKE_LOCK (CPU actif pendant la lecture)
+ * MediaSessionService (Media3) automatically handles:
+ *  - Persistent notification with title / artist / controls
+ *  - Lock-screen playback controls
+ *  - Bluetooth headset compatibility (play/pause/skip)
+ *  - WAKE_LOCK (keeps the CPU active during playback)
  *
- * ExoPlayer vit ici (et non dans le ViewModel) afin que la lecture
- * continue quand l'app passe en arrière-plan ou que l'écran se verrouille.
+ * ExoPlayer lives here (not in a ViewModel) so that playback continues
+ * when the app goes to the background or the screen locks.
  */
 class MusixPlayerService : MediaSessionService() {
 
     private var mediaSession: MediaSession? = null
 
-    // ─── Cycle de vie ────────────────────────────────────────────────────────────
+    // ─── Lifecycle ───────────────────────────────────────────────────────────────
 
     override fun onCreate() {
         super.onCreate()
         val player = ExoPlayer.Builder(this).build().also {
-            // REPEAT_MODE_OFF : ExoPlayer émet STATE_ENDED en fin de morceau.
-            // La file d'attente est gérée au niveau app (PlayerController._queue) :
-            // STATE_ENDED → PlayerController détecte la fin et charge le morceau suivant.
+            // REPEAT_MODE_OFF: ExoPlayer fires STATE_ENDED when a track finishes.
+            // The queue is managed at the app level (PlayerController._queue):
+            // STATE_ENDED → PlayerController detects the end and loads the next track.
             it.repeatMode = Player.REPEAT_MODE_OFF
         }
         mediaSession = MediaSession.Builder(this, player).build()
     }
 
     /**
-     * Appelé par le MediaController côté UI pour obtenir la session active.
-     * Retourne null si la session n'est pas encore prête.
+     * Called by the UI-side MediaController to obtain the active session.
+     * Returns null if the session is not yet ready.
      */
     override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaSession? =
         mediaSession
@@ -52,8 +52,8 @@ class MusixPlayerService : MediaSessionService() {
     }
 
     /**
-     * Arrêter le service quand l'app est fermée depuis le gestionnaire de tâches
-     * ET que rien n'est en cours de lecture (comportement attendu type Spotify).
+     * Stop the service when the app is dismissed from the recents screen
+     * AND nothing is currently playing (expected Spotify-like behavior).
      */
     override fun onTaskRemoved(rootIntent: Intent?) {
         val player = mediaSession?.player

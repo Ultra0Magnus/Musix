@@ -26,11 +26,11 @@ class PlaylistDetailViewModel(
     val uiState: StateFlow<PlaylistDetailUiState> = _uiState.asStateFlow()
 
     init {
-        // Charger le nom de la playlist
+        // Load the playlist name
         viewModelScope.launch {
             _uiState.update { it.copy(playlistName = repo.getPlaylistName(playlistId) ?: "") }
         }
-        // Observer les morceaux de la playlist
+        // Observe the playlist songs
         viewModelScope.launch {
             repo.getPlaylistSongs(playlistId).collect { songs ->
                 _uiState.update { it.copy(songs = songs) }

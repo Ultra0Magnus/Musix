@@ -28,12 +28,12 @@ import com.louis.musix.domain.model.Song
 import com.louis.musix.domain.model.formatDuration
 
 /**
- * Ligne representant un morceau dans une liste.
+ * Row representing a track in a list.
  *
- * @param song           Le morceau a afficher.
- * @param onClick        Appele quand l'utilisateur tape sur la ligne.
- * @param onMoreClick    Si non-null, affiche un bouton "..." en fin de ligne.
- * @param onArtistClick  Si non-null, le nom de l'artiste devient cliquable (en bleu).
+ * @param song           The track to display.
+ * @param onClick        Called when the user taps the row.
+ * @param onMoreClick    If non-null, shows a "..." button at the end of the row.
+ * @param onArtistClick  If non-null, the artist name becomes tappable (in primary color).
  */
 @Composable
 fun SongRow(
@@ -50,10 +50,10 @@ fun SongRow(
             .padding(start = 16.dp, end = if (onMoreClick != null) 4.dp else 16.dp, top = 8.dp, bottom = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        // Miniature
+        // Thumbnail
         AsyncImage(
             model = song.thumbnailUrl,
-            contentDescription = "Couverture de ${song.title}",
+            contentDescription = "Artwork for ${song.title}",
             contentScale = ContentScale.Crop,
             modifier = Modifier
                 .size(56.dp)
@@ -62,7 +62,7 @@ fun SongRow(
 
         Spacer(modifier = Modifier.width(12.dp))
 
-        // Titre + artiste
+        // Title + artist
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = song.title,
@@ -88,7 +88,7 @@ fun SongRow(
             )
         }
 
-        // Duree
+        // Duration
         val duration = formatDuration(song.durationSeconds)
         if (duration.isNotEmpty() && onMoreClick == null) {
             Spacer(modifier = Modifier.width(8.dp))
@@ -99,12 +99,12 @@ fun SongRow(
             )
         }
 
-        // Bouton options "..."
+        // Options button "..."
         if (onMoreClick != null) {
             IconButton(onClick = { onMoreClick(song) }) {
                 Icon(
                     Icons.Outlined.MoreVert,
-                    contentDescription = "Options",
+                    contentDescription = "More options",
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }

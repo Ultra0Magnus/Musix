@@ -90,7 +90,7 @@ fun PlayerScreen(
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val context = LocalContext.current
 
-    // ── Gradient de couleur (artwork → background) ────────────────────────────
+    // ── Artwork color gradient (artwork → background) ─────────────────────────
     val background = MaterialTheme.colorScheme.background
     var dominantColor by remember { mutableStateOf(background) }
     val animatedDominant by animateColorAsState(targetValue = dominantColor, label = "dominant")
@@ -131,7 +131,7 @@ fun PlayerScreen(
         )
     }
 
-    // ── Écran principal ───────────────────────────────────────────────────────
+    // ── Main screen ───────────────────────────────────────────────────────────
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -143,7 +143,7 @@ fun PlayerScreen(
 
         Row(modifier = Modifier.fillMaxWidth()) {
             IconButton(onClick = onBack) {
-                Icon(Icons.Outlined.ArrowBackIosNew, "Retour", tint = MaterialTheme.colorScheme.onBackground)
+                Icon(Icons.Outlined.ArrowBackIosNew, "Back", tint = MaterialTheme.colorScheme.onBackground)
             }
         }
 
@@ -161,7 +161,7 @@ fun PlayerScreen(
             if (state.song != null) {
                 AsyncImage(
                     model = state.song!!.thumbnailUrl,
-                    contentDescription = "Couverture",
+                    contentDescription = "Artwork",
                     contentScale = ContentScale.Crop,
                     modifier = Modifier.fillMaxSize(),
                 )
@@ -176,11 +176,11 @@ fun PlayerScreen(
 
         Spacer(Modifier.height(24.dp))
 
-        // Titre + artiste + favori
+        // Title + artist + favorite
         Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = state.song?.title ?: "Chargement...",
+                    text = state.song?.title ?: "Loading...",
                     style = MaterialTheme.typography.headlineSmall,
                     color = MaterialTheme.colorScheme.onBackground,
                     maxLines = 1,
@@ -203,7 +203,7 @@ fun PlayerScreen(
             IconButton(onClick = viewModel::toggleFavorite, enabled = state.song != null) {
                 Icon(
                     imageVector = if (state.isFavorite) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
-                    contentDescription = if (state.isFavorite) "Retirer des favoris" else "Ajouter aux favoris",
+                    contentDescription = if (state.isFavorite) "Remove from favorites" else "Add to favorites",
                     tint = if (state.isFavorite) MaterialTheme.colorScheme.primary
                            else MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.size(28.dp),
@@ -219,7 +219,7 @@ fun PlayerScreen(
 
         Spacer(Modifier.height(16.dp))
 
-        // Slider de progression
+        // Progress slider
         val progress = if (state.durationMs > 0)
             state.currentPositionMs.toFloat() / state.durationMs.toFloat() else 0f
 
@@ -242,10 +242,10 @@ fun PlayerScreen(
 
         Spacer(Modifier.height(12.dp))
 
-        // ── Contrôles principaux ──────────────────────────────────────────────
+        // ── Main controls ─────────────────────────────────────────────────────
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly, verticalAlignment = Alignment.CenterVertically) {
             IconButton(onClick = viewModel::skipToPrevious) {
-                Icon(Icons.Outlined.SkipPrevious, "Précédent", modifier = Modifier.size(36.dp), tint = MaterialTheme.colorScheme.onSurface)
+                Icon(Icons.Outlined.SkipPrevious, "Previous", modifier = Modifier.size(36.dp), tint = MaterialTheme.colorScheme.onSurface)
             }
             IconButton(
                 onClick = viewModel::togglePlayPause,
@@ -254,13 +254,13 @@ fun PlayerScreen(
             ) {
                 Icon(
                     if (state.isPlaying) Icons.Outlined.Pause else Icons.Outlined.PlayArrow,
-                    if (state.isPlaying) "Pause" else "Lecture",
+                    if (state.isPlaying) "Pause" else "Play",
                     tint = MaterialTheme.colorScheme.onPrimary,
                     modifier = Modifier.size(36.dp),
                 )
             }
             IconButton(onClick = viewModel::skipToNext) {
-                Icon(Icons.Outlined.SkipNext, "Suivant", modifier = Modifier.size(36.dp), tint = MaterialTheme.colorScheme.onSurface)
+                Icon(Icons.Outlined.SkipNext, "Next", modifier = Modifier.size(36.dp), tint = MaterialTheme.colorScheme.onSurface)
             }
         }
 
@@ -283,13 +283,13 @@ fun PlayerScreen(
                 )
             }
 
-            // Queue (morceaux restants)
+            // Queue (remaining tracks)
             TextButton(onClick = { showQueue = true }) {
                 Icon(Icons.Outlined.QueueMusic, null, modifier = Modifier.size(20.dp))
                 Spacer(Modifier.width(4.dp))
                 val remaining = (state.queueSize - state.currentQueueIndex - 1).coerceAtLeast(0)
                 Text(
-                    text = if (remaining > 0) "$remaining suivant${if (remaining > 1) "s" else ""}" else "File vide",
+                    text = if (remaining > 0) "$remaining next" else "Queue empty",
                     style = MaterialTheme.typography.labelMedium,
                 )
             }
@@ -306,18 +306,18 @@ fun PlayerScreen(
             }
         }
 
-        // ── Paroles ───────────────────────────────────────────────────────────
+        // ── Lyrics ────────────────────────────────────────────────────────────
         TextButton(
             onClick = { showLyrics = true },
             modifier = Modifier.fillMaxWidth(),
         ) {
             Text(
                 text = when (state.lyricsState) {
-                    is LyricsUiState.Synced       -> "Paroles synchronisées ›"
-                    is LyricsUiState.Plain        -> "Paroles ›"
-                    LyricsUiState.Instrumental    -> "Morceau instrumental"
-                    LyricsUiState.Loading         -> "Chargement des paroles…"
-                    LyricsUiState.NotFound, LyricsUiState.Idle -> "Paroles indisponibles"
+                    is LyricsUiState.Synced       -> "Synced Lyrics ›"
+                    is LyricsUiState.Plain        -> "Lyrics ›"
+                    LyricsUiState.Instrumental    -> "Instrumental track"
+                    LyricsUiState.Loading         -> "Loading lyrics…"
+                    LyricsUiState.NotFound, LyricsUiState.Idle -> "Lyrics unavailable"
                 },
                 style = MaterialTheme.typography.labelMedium,
                 color = when (state.lyricsState) {
@@ -346,7 +346,7 @@ private fun QueueBottomSheet(
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
         Column(modifier = Modifier.padding(bottom = 24.dp)) {
             Text(
-                text = "File d'attente — ${queue.size} morceau${if (queue.size > 1) "x" else ""}",
+                text = "Queue — ${queue.size} song${if (queue.size > 1) "s" else ""}",
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
@@ -384,7 +384,7 @@ private fun QueueBottomSheet(
                         }
                         if (!isCurrent) {
                             IconButton(onClick = { onRemove(index) }) {
-                                Icon(Icons.Outlined.Close, "Retirer de la file",
+                                Icon(Icons.Outlined.Close, "Remove from queue",
                                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                                     modifier = Modifier.size(18.dp))
                             }
@@ -422,7 +422,7 @@ private fun LyricsBottomSheet(
 
                 LyricsUiState.NotFound, LyricsUiState.Idle -> {
                     Box(Modifier.fillMaxWidth().height(120.dp), Alignment.Center) {
-                        Text("Paroles introuvables pour ce morceau.",
+                        Text("No lyrics found for this track.",
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             textAlign = TextAlign.Center)
@@ -431,7 +431,7 @@ private fun LyricsBottomSheet(
 
                 LyricsUiState.Instrumental -> {
                     Box(Modifier.fillMaxWidth().height(120.dp), Alignment.Center) {
-                        Text("🎵 Morceau instrumental",
+                        Text("🎵 Instrumental track",
                             style = MaterialTheme.typography.bodyLarge,
                             color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
@@ -458,14 +458,14 @@ private fun LyricsBottomSheet(
                     val listState = rememberLazyListState()
                     val scope = rememberCoroutineScope()
 
-                    // Index de la ligne en cours basé sur la position de lecture
+                    // Current line index based on playback position
                     val currentLineIndex by remember(currentPositionMs, lines) {
                         derivedStateOf {
                             lines.indexOfLast { it.timeMs <= currentPositionMs }.coerceAtLeast(0)
                         }
                     }
 
-                    // Auto-scroll vers la ligne courante
+                    // Auto-scroll to current line
                     LaunchedEffect(currentLineIndex) {
                         scope.launch {
                             listState.animateScrollToItem(

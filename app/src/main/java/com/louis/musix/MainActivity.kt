@@ -38,13 +38,13 @@ import org.koin.compose.koinInject
 
 class MainActivity : ComponentActivity() {
 
-    // Injection Koin au niveau de l'Activity (pas dans le scope Compose)
+    // Koin injection at the Activity level (not in the Compose scope)
     private val spotifyAuthManager: SpotifyAuthManager by inject()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
-        // Vérifier si l'Activity a été démarrée par le deep link Spotify (démarrage à froid)
+        // Check whether the Activity was started by the Spotify deep link (cold start)
         handleSpotifyCallback(intent)
         setContent {
             KoinContext {
@@ -55,15 +55,15 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    /** Appelé quand l'app est déjà en foreground et reçoit le deep link (singleTop). */
+    /** Called when the app is already in the foreground and receives the deep link (singleTop). */
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         handleSpotifyCallback(intent)
     }
 
     /**
-     * Extrait le code ou l'erreur du deep link musix://callback
-     * et le pousse dans [SpotifyAuthManager].
+     * Extracts the auth code or error from the musix://callback deep link
+     * and forwards it to [SpotifyAuthManager].
      */
     private fun handleSpotifyCallback(intent: Intent?) {
         val uri = intent?.data ?: return
@@ -88,17 +88,17 @@ private fun MusixContent() {
     val playerController: PlayerController = koinInject()
     val playerState by playerController.state.collectAsStateWithLifecycle()
 
-    // ── Demande la permission POST_NOTIFICATIONS sur Android 13+ ──────────────
+    // ── Request POST_NOTIFICATIONS permission on Android 13+ ──────────────────
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
         val launcher = rememberLauncherForActivityResult(
             contract = ActivityResultContracts.RequestPermission()
-        ) { /* granted ou refusé — la notification fonctionnera ou non, sans crash */ }
+        ) { /* granted or denied — the notification will work or not, without crashing */ }
         LaunchedEffect(Unit) {
             launcher.launch(Manifest.permission.POST_NOTIFICATIONS)
         }
     }
 
-    // La BottomBar (et le MiniPlayer) sont cachés sur les écrans plein-écran
+    // The BottomBar (and MiniPlayer) are hidden on full-screen screens
     val showBottomBar = currentRoute != Routes.Player.route &&
                         currentRoute != Routes.SpotifyImport.route
 
@@ -107,7 +107,7 @@ private fun MusixContent() {
         bottomBar = {
             if (showBottomBar) {
                 Column {
-                    // ── MiniPlayer — slide vertical anime ─────────────────────
+                    // ── MiniPlayer — animated vertical slide ──────────────────
                     AnimatedVisibility(
                         visible = playerState.hasActiveMedia,
                         enter = slideInVertically(initialOffsetY = { it }) + fadeIn(),
@@ -121,7 +121,7 @@ private fun MusixContent() {
                             }
                         )
                     }
-                    // ── Barre de navigation principale ─────────────────────────
+                    // ── Main navigation bar ────────────────────────────────────
                     MusixBottomBar(
                         currentRoute = currentRoute,
                         onNavigate = { route ->

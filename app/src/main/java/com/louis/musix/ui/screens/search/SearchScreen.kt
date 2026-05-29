@@ -72,16 +72,16 @@ fun SearchScreen(
     val scope = rememberCoroutineScope()
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
-    // Chanson selectionnee pour le menu options
+    // Song selected for the options menu
     var optionsSong by remember { mutableStateOf<Song?>(null) }
     var showSheet by remember { mutableStateOf(false) }
-    // Dialog selection playlist
+    // Playlist selection dialog
     var showPlaylistDialog by remember { mutableStateOf(false) }
     var playlists by remember { mutableStateOf<List<Playlist>>(emptyList()) }
-    // Etat favori de la chanson dans le sheet
+    // Favorite state of the song in the sheet
     var isFavoriteSong by remember { mutableStateOf(false) }
 
-    // Bottom sheet options
+    // Options bottom sheet
     if (showSheet && optionsSong != null) {
         ModalBottomSheet(
             onDismissRequest = { showSheet = false },
@@ -102,7 +102,7 @@ fun SearchScreen(
                 HorizontalDivider()
                 Spacer(Modifier.height(8.dp))
 
-                // Bouton favori
+                // Favorite button
                 TextButton(
                     onClick = {
                         scope.launch {
@@ -119,10 +119,10 @@ fun SearchScreen(
                                else MaterialTheme.colorScheme.onSurface,
                     )
                     Spacer(Modifier.size(8.dp))
-                    Text(if (isFavoriteSong) "Retirer des favoris" else "Ajouter aux favoris")
+                    Text(if (isFavoriteSong) "Remove from favorites" else "Add to favorites")
                 }
 
-                // Bouton ajouter à la file d'attente
+                // Add to queue button
                 TextButton(
                     onClick = {
                         playerController.addToQueue(optionsSong!!)
@@ -132,10 +132,10 @@ fun SearchScreen(
                 ) {
                     Icon(Icons.Outlined.QueueMusic, contentDescription = null)
                     Spacer(Modifier.size(8.dp))
-                    Text("Ajouter à la file d'attente")
+                    Text("Add to queue")
                 }
 
-                // Bouton ajouter a une playlist
+                // Add to playlist button
                 TextButton(
                     onClick = {
                         scope.launch {
@@ -147,7 +147,7 @@ fun SearchScreen(
                 ) {
                     Icon(Icons.Outlined.PlaylistAdd, contentDescription = null)
                     Spacer(Modifier.size(8.dp))
-                    Text("Ajouter a une playlist")
+                    Text("Add to playlist")
                 }
 
                 Spacer(Modifier.height(16.dp))
@@ -155,14 +155,14 @@ fun SearchScreen(
         }
     }
 
-    // Dialog selection de playlist
+    // Playlist selection dialog
     if (showPlaylistDialog && optionsSong != null) {
         AlertDialog(
             onDismissRequest = { showPlaylistDialog = false },
-            title = { Text("Choisir une playlist") },
+            title = { Text("Choose a playlist") },
             text = {
                 if (playlists.isEmpty()) {
-                    Text("Aucune playlist. Cree-en une depuis l'onglet Bibliotheque.")
+                    Text("No playlists. Create one from the Library tab.")
                 } else {
                     Column {
                         playlists.forEach { playlist ->
@@ -184,14 +184,14 @@ fun SearchScreen(
             },
             confirmButton = {},
             dismissButton = {
-                TextButton(onClick = { showPlaylistDialog = false }) { Text("Annuler") }
+                TextButton(onClick = { showPlaylistDialog = false }) { Text("Cancel") }
             },
         )
     }
 
     Column(modifier = Modifier.fillMaxSize()) {
 
-        // Barre de recherche
+        // Search bar
         OutlinedTextField(
             value = query,
             onValueChange = viewModel::onQueryChange,
@@ -199,7 +199,7 @@ fun SearchScreen(
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp, vertical = 12.dp),
             placeholder = {
-                Text("Artiste, titre, album...", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text("Artist, title, album...", color = MaterialTheme.colorScheme.onSurfaceVariant)
             },
             leadingIcon = {
                 Icon(Icons.Outlined.Search, contentDescription = null)
@@ -210,7 +210,7 @@ fun SearchScreen(
                         keyboard?.hide()
                         viewModel.clearSearch()
                     }) {
-                        Icon(Icons.Outlined.Close, contentDescription = "Effacer la recherche")
+                        Icon(Icons.Outlined.Close, contentDescription = "Clear search")
                     }
                 }
             },
@@ -234,7 +234,7 @@ fun SearchScreen(
                 if (searchHistory.isEmpty()) {
                     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         Text(
-                            "Tape un artiste ou un titre pour commencer",
+                            "Search for an artist or track to get started",
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
@@ -242,7 +242,7 @@ fun SearchScreen(
                 } else {
                     Column(modifier = Modifier.fillMaxSize().padding(horizontal = 8.dp)) {
                         Text(
-                            "Recherches récentes",
+                            "Recent searches",
                             style = MaterialTheme.typography.labelLarge,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.padding(start = 8.dp, top = 8.dp, bottom = 4.dp),
@@ -300,7 +300,7 @@ fun SearchScreen(
                             color = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f),
                         )
                     }
-                    // Bouton "Charger plus"
+                    // "Load more" button
                     if (state.nextPage != null || state.isLoadingMore) {
                         item {
                             Box(
@@ -314,7 +314,7 @@ fun SearchScreen(
                                         onClick  = viewModel::loadMore,
                                         modifier = Modifier.fillMaxWidth(),
                                     ) {
-                                        Text("Charger plus de résultats")
+                                        Text("Load more results")
                                     }
                                 }
                             }

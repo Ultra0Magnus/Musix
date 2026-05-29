@@ -63,21 +63,21 @@ fun LibraryScreen(
     val history by viewModel.history.collectAsStateWithLifecycle()
 
     var selectedTab by remember { mutableIntStateOf(0) }
-    val tabs = listOf("Playlists", "Favoris", "Historique")
+    val tabs = listOf("Playlists", "Favorites", "History")
 
-    // Dialog creation de playlist
+    // Create playlist dialog
     var showCreateDialog by remember { mutableStateOf(false) }
     var newPlaylistName by remember { mutableStateOf("") }
 
     if (showCreateDialog) {
         AlertDialog(
             onDismissRequest = { showCreateDialog = false; newPlaylistName = "" },
-            title = { Text("Nouvelle playlist") },
+            title = { Text("New playlist") },
             text = {
                 OutlinedTextField(
                     value = newPlaylistName,
                     onValueChange = { newPlaylistName = it },
-                    label = { Text("Nom de la playlist") },
+                    label = { Text("Playlist name") },
                     singleLine = true,
                 )
             },
@@ -86,11 +86,11 @@ fun LibraryScreen(
                     viewModel.createPlaylist(newPlaylistName)
                     showCreateDialog = false
                     newPlaylistName = ""
-                }) { Text("Creer") }
+                }) { Text("Create") }
             },
             dismissButton = {
                 TextButton(onClick = { showCreateDialog = false; newPlaylistName = "" }) {
-                    Text("Annuler")
+                    Text("Cancel")
                 }
             },
         )
@@ -103,7 +103,7 @@ fun LibraryScreen(
                     onClick = { showCreateDialog = true },
                     containerColor = MaterialTheme.colorScheme.primary,
                 ) {
-                    Icon(Icons.Outlined.Add, contentDescription = "Nouvelle playlist")
+                    Icon(Icons.Outlined.Add, contentDescription = "New playlist")
                 }
             }
         },
@@ -132,7 +132,7 @@ fun LibraryScreen(
     }
 }
 
-// ─── Onglet Playlists ──────────────────────────────────────────────────────────
+// ─── Playlists Tab ────────────────────────────────────────────────────────────
 
 @Composable
 private fun PlaylistsTab(
@@ -142,7 +142,7 @@ private fun PlaylistsTab(
     onSpotifyImport: () -> Unit,
 ) {
     Column(modifier = Modifier.fillMaxSize()) {
-        // Bouton import Spotify en haut de l'onglet
+        // Spotify import button at the top of the tab
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -157,7 +157,7 @@ private fun PlaylistsTab(
                 modifier = Modifier.size(18.dp),
             )
             TextButton(onClick = onSpotifyImport) {
-                Text("Importer depuis Spotify")
+                Text("Import from Spotify")
             }
         }
         HorizontalDivider(
@@ -166,7 +166,7 @@ private fun PlaylistsTab(
         )
 
         if (playlists.isEmpty()) {
-            EmptyState("Aucune playlist\nAppuie sur + pour en creer une")
+            EmptyState("No playlists\nTap + to create one")
         } else {
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
@@ -218,20 +218,20 @@ private fun PlaylistRow(
                 color = MaterialTheme.colorScheme.onSurface,
             )
             Text(
-                text = "${playlist.songCount} morceau${if (playlist.songCount > 1) "x" else ""}",
+                text = "${playlist.songCount} song${if (playlist.songCount > 1) "s" else ""}",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
-        TextButton(onClick = onClick) { Text("Ouvrir") }
+        TextButton(onClick = onClick) { Text("Open") }
         IconButton(onClick = onDelete) {
-            Icon(Icons.Outlined.Delete, contentDescription = "Supprimer",
+            Icon(Icons.Outlined.Delete, contentDescription = "Delete",
                 tint = MaterialTheme.colorScheme.error)
         }
     }
 }
 
-// ─── Onglet Favoris ────────────────────────────────────────────────────────────
+// ─── Favorites Tab ────────────────────────────────────────────────────────────
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -241,7 +241,7 @@ private fun FavoritesTab(
     onRemove: (Song) -> Unit,
 ) {
     if (favorites.isEmpty()) {
-        EmptyState("Aucun favori\nAppuie sur le coeur dans le lecteur")
+        EmptyState("No favorites yet\nTap the heart in the player")
     } else {
         LazyColumn(modifier = Modifier.fillMaxSize()) {
             items(favorites, key = { it.id }) { song ->
@@ -279,7 +279,7 @@ private fun FavoritesTab(
     }
 }
 
-// ─── Onglet Historique ────────────────────────────────────────────────────────
+// ─── History Tab ──────────────────────────────────────────────────────────────
 
 @Composable
 private fun HistoryTab(
@@ -288,10 +288,10 @@ private fun HistoryTab(
     onClearAll: () -> Unit,
 ) {
     if (history.isEmpty()) {
-        EmptyState("Aucun historique\nLance une chanson pour commencer")
+        EmptyState("No history yet\nPlay a song to get started")
     } else {
         Column(modifier = Modifier.fillMaxSize()) {
-            // Bouton "Tout effacer"
+            // "Clear all" button
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -302,7 +302,7 @@ private fun HistoryTab(
                     Icon(Icons.Outlined.Delete, contentDescription = null,
                         modifier = Modifier.size(16.dp))
                     Spacer(Modifier.size(4.dp))
-                    Text("Tout effacer")
+                    Text("Clear all")
                 }
             }
             LazyColumn(modifier = Modifier.fillMaxSize()) {
@@ -318,7 +318,7 @@ private fun HistoryTab(
     }
 }
 
-// ─── Etat vide ────────────────────────────────────────────────────────────────
+// ─── Empty State ──────────────────────────────────────────────────────────────
 
 @Composable
 private fun EmptyState(text: String) {

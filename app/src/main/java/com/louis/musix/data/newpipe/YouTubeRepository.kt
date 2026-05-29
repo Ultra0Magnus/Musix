@@ -15,20 +15,20 @@ import org.schabi.newpipe.extractor.stream.StreamInfo
 import org.schabi.newpipe.extractor.stream.StreamInfoItem
 
 private const val TAG          = "Musix.YouTube"
-private const val CACHE_TTL_MS = 5 * 60 * 60 * 1000L  // 5 heures (URL YouTube ~6h)
+private const val CACHE_TTL_MS = 5 * 60 * 60 * 1000L  // 5 hours (YouTube URLs expire in ~6h)
 
 class YouTubeRepository {
 
     private val youtube = ServiceList.YouTube
 
-    // ─── Cache des URLs audio (en mémoire, TTL 5h) ─────────────────────────────
+    // ─── In-memory audio URL cache (TTL 5h) ───────────────────────────────────
 
     private data class CachedUrl(val url: String, val expiresAt: Long)
     private val urlCache = mutableMapOf<String, CachedUrl>()
 
-    // ─── Recherche ──────────────────────────────────────────────────────────────
+    // ─── Search ────────────────────────────────────────────────────────────────
 
-    /** Résultat paginé d'une recherche YouTube. */
+    /** Paginated result for a YouTube search. */
     data class SearchResult(
         val songs:    List<Song>,
         val nextPage: Page?,
@@ -36,8 +36,8 @@ class YouTubeRepository {
     )
 
     /**
-     * Recherche paginée — retourne la première page + un token [SearchResult.nextPage]
-     * pour charger la suite via [searchMore].
+     * Paged search — returns the first page plus a [SearchResult.nextPage] token
+     * to load more results via [searchMore].
      */
     suspend fun searchPaged(query: String): SearchResult = withContext(Dispatchers.IO) {
         val handler = youtube.searchQHFactory.fromQuery(query, listOf("music_songs"), "")
@@ -50,9 +50,9 @@ class YouTubeRepository {
     }
 
     /**
-     * Charge la page suivante. NewPipe a besoin du même [SearchQueryHandler] que la
-     * première page : on le reconstruit à partir de la requête d'origine ([query]),
-     * puis on passe le token [nextPage] renvoyé par [searchPaged] / [searchMore].
+     * Loads the next page. NewPipe requires the same [SearchQueryHandler] as the
+     * first page: we reconstruct it from the original query ([query]) then pass
+     * the [nextPage] token returned by [searchPaged] / [searchMore].
      */
     suspend fun searchMore(query: String, nextPage: Page): SearchResult =
         withContext(Dispatchers.IO) {
@@ -66,8 +66,8 @@ class YouTubeRepository {
         }
 
     /**
-     * Recherche simple (sans pagination) — conservée pour l'auto-queue artiste
-     * dans [PlayerViewModel] et les autres usages internes.
+     * Simple search (no pagination) — kept for the artist auto-queue in
+     * [PlayerViewModel] and other internal uses.
      */
     suspend fun search(query: String): List<Song> = withContext(Dispatchers.IO) {
         val searchHandler = youtube.searchQHFactory
@@ -78,11 +78,11 @@ class YouTubeRepository {
             .map { it.toSong() }
     }
 
-    // ─── Albums d'un artiste (YouTube Music) ───────────────────────────────────
+    // ─── Artist albums (YouTube Music) ────────────────────────────────────────
 
     /**
-     * Recherche les albums d'un artiste sur YouTube Music.
-     * Utilise le filtre "music_albums" → retourne des [PlaylistInfoItem].
+     * Searches for an artist's albums on YouTube Music.
+     * Uses the "music_albums" filter → returns [PlaylistInfoItem] results.
      */
     suspend fun searchAlbums(artistName: String): List<ArtistAlbum> =
         withContext(Dispatchers.IO) {
@@ -94,16 +94,16 @@ class YouTubeRepository {
                     .filterIsInstance<PlaylistInfoItem>()
                     .take(12)
                     .mapNotNull { it.toAlbum() }
-                    .also { Log.d(TAG, "${it.size} albums pour « $artistName »") }
+                    .also { Log.d(TAG, "${it.size} albums for \"$artistName\"") }
             } catch (e: Exception) {
-                Log.w(TAG, "searchAlbums(\"$artistName\") KO : ${e.message}")
+                Log.w(TAG, "searchAlbums(\"$artistName\") failed: ${e.message}")
                 emptyList()
             }
         }
 
     /**
-     * Récupère les pistes d'un album à partir de l'URL de sa playlist YouTube Music.
-     * Retourne seulement la première page (≈ 25 pistes) — suffisant pour un album classique.
+     * Fetches the tracks of an album from its YouTube Music playlist URL.
+     * Returns only the first page (≈ 25 tracks) — sufficient for a standard album.
      */
     suspend fun getAlbumTracks(playlistUrl: String): List<Song> =
         withContext(Dispatchers.IO) {
@@ -112,118 +112,118 @@ class YouTubeRepository {
             info.relatedItems
                 .filterIsInstance<StreamInfoItem>()
                 .map { it.toSong() }
-                .also { Log.d(TAG, "${it.size} pistes dans l'album") }
+                .also { Log.d(TAG, "${it.size} tracks in album") }
         }
 
-    // ─── Tendances YouTube (kiosk) ──────────────────────────────────────────────
+    // ─── YouTube Trending (kiosk) ──────────────────────────────────────────────
 
     /**
-     * Retourne les vidéos tendance de YouTube via le kiosk par défaut (Trending).
-     * Utilise l'extracteur directement pour éviter le bug "Could not get trending name"
-     * de KioskInfo.getInfo() en v0.26.2.
+     * Returns YouTube trending videos via the default kiosk (Trending).
+     * Uses the extractor directly to work around the "Could not get trending name"
+     * bug in KioskInfo.getInfo() in v0.26.2.
      */
     suspend fun getTrending(): List<Song> = withContext(Dispatchers.IO) {
         try {
             val kioskList = youtube.kioskList
             val kioskId = kioskList.defaultKioskId
-            Log.d(TAG, "Trending kiosk id : $kioskId")
+            Log.d(TAG, "Trending kiosk id: $kioskId")
             val extractor = kioskList.getExtractorById(kioskId, null)
             extractor.fetchPage()
             val items = extractor.initialPage.items
-            Log.d(TAG, "Trending : ${items.size} items")
+            Log.d(TAG, "Trending: ${items.size} items")
             items
                 .filterIsInstance<StreamInfoItem>()
                 .map { it.toSong() }
         } catch (e: Exception) {
-            Log.e(TAG, "getTrending() KO : ${e.javaClass.simpleName} — ${e.message}")
-            throw Exception("Impossible de charger les tendances : ${e.localizedMessage}")
+            Log.e(TAG, "getTrending() failed: ${e.javaClass.simpleName} — ${e.message}")
+            throw Exception("Failed to load trending: ${e.localizedMessage}")
         }
     }
 
-    // ─── Extraction audio via NewPipeExtractor ──────────────────────────────────
+    // ─── Audio extraction via NewPipeExtractor ─────────────────────────────────
 
     /**
-     * Retourne l'URL directe du flux audio pour une vidéo YouTube.
-     * Les URLs sont mises en cache en mémoire avec un TTL de 5h (YouTube ~6h).
-     * Sur un replay rapide dans la même session, aucun appel réseau supplémentaire.
+     * Returns the direct audio stream URL for a YouTube video.
+     * URLs are cached in memory with a 5h TTL (YouTube URLs expire in ~6h).
+     * On a quick replay within the same session, no additional network call is made.
      */
     suspend fun getAudioStreamUrl(videoUrl: String): String = withContext(Dispatchers.IO) {
         val normalizedUrl = normalizeYouTubeUrl(videoUrl)
         val videoId       = extractVideoId(normalizedUrl) ?: normalizedUrl
 
-        // ── Vérifier le cache ────────────────────────────────────────────────────
+        // ── Check cache ──────────────────────────────────────────────────────
         val cached = urlCache[videoId]
         if (cached != null && System.currentTimeMillis() < cached.expiresAt) {
-            Log.d(TAG, "✓ URL audio depuis le cache ($videoId)")
+            Log.d(TAG, "✓ Audio URL from cache ($videoId)")
             return@withContext cached.url
         }
 
-        // ── Fetch fraîche ────────────────────────────────────────────────────────
+        // ── Fresh fetch ──────────────────────────────────────────────────────
         val url = fetchFreshAudioUrl(normalizedUrl)
         urlCache[videoId] = CachedUrl(url, System.currentTimeMillis() + CACHE_TTL_MS)
-        Log.d(TAG, "URL mise en cache ($videoId, expire dans 5h)")
+        Log.d(TAG, "URL cached ($videoId, expires in 5h)")
         url
     }
 
     /**
-     * Extraction réseau — appelé uniquement si le cache est vide ou expiré.
+     * Network extraction — called only when the cache is empty or expired.
      *
-     * Délègue entièrement à NewPipeExtractor v0.26.2 qui gère en interne :
-     *  - Sélection du client InnerTube (ANDROID, IOS, WEB…)
-     *  - Déchiffrement de signature (cipher)
-     *  - Paramètre anti-throttle `n`
+     * Fully delegates to NewPipeExtractor v0.26.2 which handles internally:
+     *  - InnerTube client selection (ANDROID, IOS, WEB…)
+     *  - Signature decryption (cipher)
+     *  - Anti-throttle `n` parameter
      */
     private fun fetchFreshAudioUrl(normalizedUrl: String): String {
-        Log.d(TAG, "Extraction audio (réseau) : $normalizedUrl")
+        Log.d(TAG, "Audio extraction (network): $normalizedUrl")
 
         val streamInfo = try {
             StreamInfo.getInfo(youtube, normalizedUrl)
         } catch (e: Exception) {
-            Log.e(TAG, "StreamInfo.getInfo() KO : ${e.javaClass.simpleName} — ${e.message}")
-            throw Exception("Impossible de charger la vidéo : ${e.message}")
+            Log.e(TAG, "StreamInfo.getInfo() failed: ${e.javaClass.simpleName} — ${e.message}")
+            throw Exception("Failed to load video: ${e.message}")
         }
 
-        Log.d(TAG, "Titre : ${streamInfo.name}")
-        Log.d(TAG, "${streamInfo.audioStreams.size} flux audio, ${streamInfo.videoOnlyStreams.size} flux vidéo seul, ${streamInfo.videoStreams.size} flux combinés")
+        Log.d(TAG, "Title: ${streamInfo.name}")
+        Log.d(TAG, "${streamInfo.audioStreams.size} audio streams, ${streamInfo.videoOnlyStreams.size} video-only streams, ${streamInfo.videoStreams.size} combined streams")
         if (streamInfo.errors.isNotEmpty()) {
-            streamInfo.errors.forEach { Log.w(TAG, "Erreur non-fatale : ${it.javaClass.simpleName} — ${it.message}") }
+            streamInfo.errors.forEach { Log.w(TAG, "Non-fatal error: ${it.javaClass.simpleName} — ${it.message}") }
         }
 
-        // ── Priorité 1 : flux audio-only adaptatifs ─────────────────────────────
+        // ── Priority 1: adaptive audio-only streams ──────────────────────────
         val audioOnlyStreams = streamInfo.audioStreams.filter { it.isUrl && it.content.isNotBlank() }
 
         if (audioOnlyStreams.isNotEmpty()) {
             val chosen = audioOnlyStreams.firstOrNull { it.format == MediaFormat.M4A }
                 ?: audioOnlyStreams.firstOrNull { it.format == MediaFormat.WEBMA_OPUS || it.format == MediaFormat.WEBMA }
                 ?: audioOnlyStreams.first()
-            Log.d(TAG, "✓ Flux audio-only : ${chosen.format}, url=${chosen.content.take(80)}…")
+            Log.d(TAG, "✓ Audio-only stream: ${chosen.format}, url=${chosen.content.take(80)}…")
             return chosen.content
         }
 
-        // ── Priorité 2 : flux combiné (audio + vidéo dans le même conteneur) ───
+        // ── Priority 2: combined stream (audio + video in the same container) ─
         val combinedStreams = streamInfo.videoStreams.filter { it.isUrl && it.content.isNotBlank() }
 
         if (combinedStreams.isNotEmpty()) {
             val chosen = combinedStreams.first()
-            Log.d(TAG, "✓ Flux combiné (audio+vidéo) : ${chosen.format}, url=${chosen.content.take(80)}…")
+            Log.d(TAG, "✓ Combined stream (audio+video): ${chosen.format}, url=${chosen.content.take(80)}…")
             return chosen.content
         }
 
-        Log.e(TAG, "Aucun flux : audioOnly=${streamInfo.audioStreams.size}, " +
+        Log.e(TAG, "No streams found: audioOnly=${streamInfo.audioStreams.size}, " +
                 "combined=${streamInfo.videoStreams.size}, videoOnly=${streamInfo.videoOnlyStreams.size}")
-        throw Exception("Aucun flux disponible pour cette vidéo")
+        throw Exception("No streams available for this video")
     }
 
-    // ─── Conversion NewPipe → Song ──────────────────────────────────────────────
+    // ─── NewPipe → Song conversion ─────────────────────────────────────────────
 
     private fun StreamInfoItem.toSong(): Song {
         val videoId = extractVideoId(url) ?: url
         val thumb = thumbnails.maxByOrNull { it.width }?.url ?: ""
-        // Normaliser l'URL dès la recherche — évite music.youtube.com au moment du play
+        // Normalize the URL at search time — prevents music.youtube.com issues at playback
         return Song(
             id              = videoId,
-            title           = name ?: "Titre inconnu",
-            artist          = uploaderName ?: "Artiste inconnu",
+            title           = name ?: "Unknown title",
+            artist          = uploaderName ?: "Unknown artist",
             thumbnailUrl    = thumb,
             durationSeconds = duration,
             videoUrl        = normalizeYouTubeUrl(url),
@@ -231,8 +231,8 @@ class YouTubeRepository {
     }
 
     /**
-     * Convertit music.youtube.com → www.youtube.com.
-     * NewPipeExtractor's YouTube service ne gère les streams que sur youtube.com.
+     * Converts music.youtube.com → www.youtube.com.
+     * NewPipeExtractor's YouTube service only handles streams on youtube.com.
      */
     private fun normalizeYouTubeUrl(url: String): String {
         if (!url.contains("music.youtube.com")) return url
@@ -247,14 +247,14 @@ class YouTubeRepository {
         return null
     }
 
-    // ─── Conversion PlaylistInfoItem → ArtistAlbum ─────────────────────────────
+    // ─── PlaylistInfoItem → ArtistAlbum conversion ────────────────────────────
 
     private fun PlaylistInfoItem.toAlbum(): ArtistAlbum? {
         val albumUrl = url?.takeIf { it.isNotBlank() } ?: return null
         val artwork  = thumbnails.maxByOrNull { it.width }?.url ?: ""
         return ArtistAlbum(
             id          = albumUrl,
-            name        = name ?: "Album inconnu",
+            name        = name ?: "Unknown album",
             artworkUrl  = artwork,
             trackCount  = streamCount.toInt().coerceAtLeast(0),
             playlistUrl = albumUrl,

@@ -51,7 +51,7 @@ fun SpotifyImportScreen(onBack: () -> Unit) {
     val state by viewModel.importState.collectAsStateWithLifecycle()
     val context = LocalContext.current
 
-    // Sélecteur de fichiers JSON (export RGPD Spotify)
+    // JSON file picker (Spotify GDPR export)
     val filePicker = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenMultipleDocuments()
     ) { uris ->
@@ -74,10 +74,10 @@ fun SpotifyImportScreen(onBack: () -> Unit) {
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Importer depuis Spotify") },
+                title = { Text("Import from Spotify") },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.Outlined.ArrowBackIosNew, contentDescription = "Retour")
+                        Icon(Icons.Outlined.ArrowBackIosNew, contentDescription = "Back")
                     }
                 },
             )
@@ -92,7 +92,7 @@ fun SpotifyImportScreen(onBack: () -> Unit) {
         ) {
             when (val s = state) {
                 is ImportState.Idle        -> IdleContent(
-                    viewModel  = viewModel,
+                    viewModel   = viewModel,
                     onPickFiles = { filePicker.launch(arrayOf("application/json", "*/*")) },
                 )
                 is ImportState.WaitingAuth -> WaitingAuthContent(viewModel)
@@ -105,7 +105,7 @@ fun SpotifyImportScreen(onBack: () -> Unit) {
     }
 }
 
-// ── Idle — les deux options côte à côte ───────────────────────────────────────
+// ── Idle — two options ────────────────────────────────────────────────────────
 
 @Composable
 private fun IdleContent(
@@ -125,28 +125,28 @@ private fun IdleContent(
         )
 
         Text(
-            text      = "Importer depuis Spotify",
+            text      = "Import from Spotify",
             style     = MaterialTheme.typography.headlineSmall,
             textAlign = TextAlign.Center,
         )
 
         Spacer(Modifier.height(4.dp))
 
-        // ── Option A : fichiers JSON (recommandée) ────────────────────────────
+        // ── Option A: JSON files (recommended) ───────────────────────────────
         Text(
-            text      = "Option recommandée — Export RGPD",
-            style     = MaterialTheme.typography.labelLarge,
+            text       = "Recommended option — GDPR Export",
+            style      = MaterialTheme.typography.labelLarge,
             fontWeight = FontWeight.SemiBold,
-            color     = MaterialTheme.colorScheme.primary,
-            textAlign = TextAlign.Center,
+            color      = MaterialTheme.colorScheme.primary,
+            textAlign  = TextAlign.Center,
         )
 
         Text(
-            text = "Demande ton export sur spotify.com/account/privacy " +
-                   "(mail reçu sous 5 jours). Extrais le ZIP, puis sélectionne :\n\n" +
-                   "• Streaming_History_Audio_*.json → crée un Top 50 all time + Top 20 par année\n" +
-                   "• YourLibrary.json → tes titres aimés\n" +
-                   "• Playlist*.json → tes playlists",
+            text = "Request your export at spotify.com/account/privacy " +
+                   "(email within 5 days). Extract the ZIP, then select:\n\n" +
+                   "• Streaming_History_Audio_*.json → creates a Top 50 all time + Top 20 by year\n" +
+                   "• YourLibrary.json → your liked tracks\n" +
+                   "• Playlist*.json → your playlists",
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center,
@@ -162,24 +162,24 @@ private fun IdleContent(
                 modifier = Modifier.size(18.dp),
             )
             Spacer(Modifier.size(8.dp))
-            Text("Sélectionner les fichiers JSON")
+            Text("Select JSON files")
         }
 
         Spacer(Modifier.height(4.dp))
         HorizontalDivider()
         Spacer(Modifier.height(4.dp))
 
-        // ── Option B : API OAuth (Premium requis) ─────────────────────────────
+        // ── Option B: OAuth API (Premium required) ────────────────────────────
         Text(
-            text      = "Option alternative — API Spotify (Premium requis)",
-            style     = MaterialTheme.typography.labelLarge,
+            text       = "Alternative option — Spotify API (Premium required)",
+            style      = MaterialTheme.typography.labelLarge,
             fontWeight = FontWeight.SemiBold,
-            color     = MaterialTheme.colorScheme.onSurfaceVariant,
-            textAlign = TextAlign.Center,
+            color      = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign  = TextAlign.Center,
         )
 
         Text(
-            text = "Nécessite que le compte développeur de l'app ait Spotify Premium.",
+            text = "Requires the app's developer account to have Spotify Premium.",
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center,
@@ -189,22 +189,22 @@ private fun IdleContent(
             OutlinedButton(
                 onClick  = viewModel::connectAndImport,
                 modifier = Modifier.fillMaxWidth(),
-            ) { Text("Lancer l'import (API)") }
+            ) { Text("Start import (API)") }
 
             TextButton(
                 onClick  = viewModel::disconnect,
                 modifier = Modifier.fillMaxWidth(),
-            ) { Text("Déconnecter") }
+            ) { Text("Disconnect") }
         } else {
             OutlinedButton(
                 onClick  = viewModel::connectAndImport,
                 modifier = Modifier.fillMaxWidth(),
-            ) { Text("Connecter Spotify (Premium)") }
+            ) { Text("Connect Spotify (Premium)") }
         }
     }
 }
 
-// ── En attente de la redirection navigateur ───────────────────────────────────
+// ── Waiting for browser redirect ──────────────────────────────────────────────
 
 @Composable
 private fun WaitingAuthContent(viewModel: SpotifyImportViewModel) {
@@ -213,18 +213,18 @@ private fun WaitingAuthContent(viewModel: SpotifyImportViewModel) {
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         CircularProgressIndicator(modifier = Modifier.size(56.dp))
-        Text("En attente de Spotify...", style = MaterialTheme.typography.titleMedium)
+        Text("Waiting for Spotify...", style = MaterialTheme.typography.titleMedium)
         Text(
-            text  = "Autorise l'accès dans le navigateur\npuis reviens sur l'app.",
+            text  = "Authorize access in your browser\nthen come back to the app.",
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center,
         )
-        TextButton(onClick = viewModel::retry) { Text("Annuler") }
+        TextButton(onClick = viewModel::retry) { Text("Cancel") }
     }
 }
 
-// ── Échange du code ───────────────────────────────────────────────────────────
+// ── Token exchange ────────────────────────────────────────────────────────────
 
 @Composable
 private fun ExchangingContent() {
@@ -233,11 +233,11 @@ private fun ExchangingContent() {
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         CircularProgressIndicator(modifier = Modifier.size(56.dp))
-        Text("Connexion en cours...", style = MaterialTheme.typography.titleMedium)
+        Text("Connecting...", style = MaterialTheme.typography.titleMedium)
     }
 }
 
-// ── Import en cours ───────────────────────────────────────────────────────────
+// ── Import in progress ────────────────────────────────────────────────────────
 
 @Composable
 private fun ImportingContent(state: ImportState.Importing, viewModel: SpotifyImportViewModel) {
@@ -248,7 +248,7 @@ private fun ImportingContent(state: ImportState.Importing, viewModel: SpotifyImp
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         CircularProgressIndicator(modifier = Modifier.size(56.dp))
-        Text("Importation en cours...", style = MaterialTheme.typography.titleMedium)
+        Text("Importing...", style = MaterialTheme.typography.titleMedium)
         Text(
             text  = state.phase,
             style = MaterialTheme.typography.bodyMedium,
@@ -265,16 +265,16 @@ private fun ImportingContent(state: ImportState.Importing, viewModel: SpotifyImp
         }
         Spacer(Modifier.height(4.dp))
         Text(
-            text  = "L'import peut prendre quelques minutes.",
+            text  = "Import may take a few minutes.",
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center,
         )
-        TextButton(onClick = viewModel::cancelImport) { Text("Annuler") }
+        TextButton(onClick = viewModel::cancelImport) { Text("Cancel") }
     }
 }
 
-// ── Terminé ───────────────────────────────────────────────────────────────────
+// ── Done ──────────────────────────────────────────────────────────────────────
 
 @Composable
 private fun DoneContent(state: ImportState.Done, onBack: () -> Unit) {
@@ -288,25 +288,25 @@ private fun DoneContent(state: ImportState.Done, onBack: () -> Unit) {
             modifier           = Modifier.size(72.dp),
             tint               = MaterialTheme.colorScheme.primary,
         )
-        Text("Import terminé !", style = MaterialTheme.typography.headlineSmall)
+        Text("Import complete!", style = MaterialTheme.typography.headlineSmall)
 
         val t = state.tracksImported
         val p = state.playlistsCreated
         Text(
-            text = "${t} morceau${if (t > 1) "x" else ""} importé${if (t > 1) "s" else ""}\n" +
-                   "${p} playlist${if (p > 1) "s" else ""} créée${if (p > 1) "s" else ""}",
+            text = "${t} song${if (t > 1) "s" else ""} imported\n" +
+                   "${p} playlist${if (p > 1) "s" else ""} created",
             style     = MaterialTheme.typography.bodyLarge,
             color     = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center,
         )
         Spacer(Modifier.height(8.dp))
         Button(onClick = onBack, modifier = Modifier.fillMaxWidth()) {
-            Text("Voir ma bibliotheque")
+            Text("Go to library")
         }
     }
 }
 
-// ── Erreur ────────────────────────────────────────────────────────────────────
+// ── Error ─────────────────────────────────────────────────────────────────────
 
 @Composable
 private fun ErrorContent(state: ImportState.Error, viewModel: SpotifyImportViewModel) {
@@ -321,7 +321,7 @@ private fun ErrorContent(state: ImportState.Error, viewModel: SpotifyImportViewM
             tint               = MaterialTheme.colorScheme.error,
         )
         Text(
-            text      = "Quelque chose s'est mal passé",
+            text      = "Something went wrong",
             style     = MaterialTheme.typography.titleLarge,
             color     = MaterialTheme.colorScheme.error,
             textAlign = TextAlign.Center,
@@ -334,7 +334,7 @@ private fun ErrorContent(state: ImportState.Error, viewModel: SpotifyImportViewM
         )
         Spacer(Modifier.height(8.dp))
         Button(onClick = viewModel::retry, modifier = Modifier.fillMaxWidth()) {
-            Text("Réessayer")
+            Text("Retry")
         }
     }
 }

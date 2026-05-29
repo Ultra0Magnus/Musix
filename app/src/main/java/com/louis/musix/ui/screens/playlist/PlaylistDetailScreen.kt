@@ -42,7 +42,7 @@ import org.koin.core.parameter.parametersOf
 fun PlaylistDetailScreen(
     playlistId: Long,
     onBack: () -> Unit,
-    /** [songs] = toute la playlist, [startIndex] = rang du morceau cliqué. */
+    /** [songs] = full playlist, [startIndex] = index of the tapped track. */
     onSongClick: (songs: List<Song>, startIndex: Int) -> Unit,
 ) {
     val viewModel: PlaylistDetailViewModel = koinViewModel(parameters = { parametersOf(playlistId) })
@@ -59,7 +59,7 @@ fun PlaylistDetailScreen(
                 },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.Outlined.ArrowBackIosNew, contentDescription = "Retour")
+                        Icon(Icons.Outlined.ArrowBackIosNew, contentDescription = "Back")
                     }
                 },
             )
@@ -73,13 +73,13 @@ fun PlaylistDetailScreen(
             if (state.songs.isEmpty()) {
                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     Text(
-                        "Playlist vide\nAjoute des morceaux depuis la recherche",
+                        "Empty playlist\nAdd songs from the search tab",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
             } else {
-                // Bouton "Tout lire"
+                // "Play all" button
                 Button(
                     onClick = { if (state.songs.isNotEmpty()) onSongClick(state.songs, 0) },
                     modifier = Modifier
@@ -88,7 +88,7 @@ fun PlaylistDetailScreen(
                 ) {
                     Icon(Icons.Outlined.PlayArrow, contentDescription = null)
                     Spacer(Modifier.padding(horizontal = 4.dp))
-                    Text("Tout lire (${state.songs.size} morceaux)")
+                    Text("Play all (${state.songs.size} song${if (state.songs.size > 1) "s" else ""})")
                 }
 
                 LazyColumn(modifier = Modifier.fillMaxSize()) {
@@ -96,10 +96,10 @@ fun PlaylistDetailScreen(
                         items = state.songs,
                         key   = { index, song -> "${index}_${song.id}" },
                     ) { index, song ->
-                        // ── Swipe-to-dismiss sécurisé ─────────────────────────
-                        // On n'utilise PAS confirmValueChange avec side-effect
-                        // (risque de suppression lors d'un recompose).
-                        // L'action est confirmée via LaunchedEffect sur currentValue.
+                        // ── Safe swipe-to-dismiss ─────────────────────────────
+                        // We do NOT use confirmValueChange with a side-effect
+                        // (risk of deletion on recompose).
+                        // The action is confirmed via LaunchedEffect on currentValue.
                         val dismissState = rememberSwipeToDismissBoxState(
                             positionalThreshold = { totalDistance -> totalDistance * 0.5f },
                         )

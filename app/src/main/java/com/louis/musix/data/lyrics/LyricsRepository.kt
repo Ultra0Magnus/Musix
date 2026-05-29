@@ -13,20 +13,20 @@ import java.net.URLEncoder
 private const val TAG      = "Musix.Lyrics"
 private const val BASE_URL = "https://lrclib.net/api/get"
 
-// ── Résultat de la recherche de paroles ───────────────────────────────────────
+// ── Lyrics search result ──────────────────────────────────────────────────────
 
 sealed interface LyricsResult {
-    /** Paroles synchronisées avec timestamps. */
+    /** Synced lyrics with timestamps. */
     data class Synced(val lines: List<LyricLine>)  : LyricsResult
-    /** Paroles sans timestamps (texte brut). */
+    /** Plain lyrics without timestamps. */
     data class Plain(val text: String)              : LyricsResult
-    /** Morceau instrumental (pas de paroles). */
+    /** Instrumental track (no lyrics). */
     data object Instrumental                        : LyricsResult
-    /** Paroles introuvables pour ce morceau. */
+    /** Lyrics not found for this track. */
     data object NotFound                            : LyricsResult
 }
 
-// ── Modèle de réponse LRCLIB ──────────────────────────────────────────────────
+// ── LRCLIB response model ─────────────────────────────────────────────────────
 
 @Serializable
 private data class LrcLibResponse(
@@ -38,9 +38,9 @@ private data class LrcLibResponse(
 // ── Repository ────────────────────────────────────────────────────────────────
 
 /**
- * Récupère les paroles depuis [lrclib.net](https://lrclib.net) — API gratuite, sans clé.
+ * Fetches lyrics from [lrclib.net](https://lrclib.net) — free API, no key required.
  *
- * Priorité : paroles synchronisées (LRC) > paroles brutes > instrumental > introuvable.
+ * Priority: synced lyrics (LRC) > plain text > instrumental > not found.
  */
 class LyricsRepository {
 
@@ -61,7 +61,7 @@ class LyricsRepository {
             ).execute()
 
             if (!response.isSuccessful) {
-                Log.d(TAG, "Paroles introuvables (${response.code})")
+                Log.d(TAG, "Lyrics not found (${response.code})")
                 return@withContext LyricsResult.NotFound
             }
 
@@ -72,37 +72,37 @@ class LyricsRepository {
 
             when {
                 data.instrumental -> {
-                    Log.d(TAG, "Morceau instrumental")
+                    Log.d(TAG, "Instrumental track")
                     LyricsResult.Instrumental
                 }
                 !data.syncedLyrics.isNullOrBlank() -> {
                     val lines = parseLrc(data.syncedLyrics)
-                    Log.d(TAG, "${lines.size} lignes synchronisées")
+                    Log.d(TAG, "${lines.size} synced lines")
                     LyricsResult.Synced(lines)
                 }
                 !data.plainLyrics.isNullOrBlank() -> {
-                    Log.d(TAG, "Paroles brutes disponibles")
+                    Log.d(TAG, "Plain lyrics available")
                     LyricsResult.Plain(data.plainLyrics)
                 }
                 else -> {
-                    Log.d(TAG, "Réponse vide")
+                    Log.d(TAG, "Empty response")
                     LyricsResult.NotFound
                 }
             }
         } catch (e: Exception) {
-            Log.w(TAG, "getLyrics KO : ${e.message}")
+            Log.w(TAG, "getLyrics failed: ${e.message}")
             LyricsResult.NotFound
         }
     }
 
-    // ── Parsing LRC ───────────────────────────────────────────────────────────
+    // ── LRC parsing ───────────────────────────────────────────────────────────
 
     /**
-     * Parse le format LRC :
+     * Parses the LRC format:
      * ```
-     * [02:34.56] Texte de la ligne
+     * [02:34.56] Line text
      * ```
-     * Les champs horaires peuvent avoir 2 ou 3 chiffres pour les centièmes/millièmes.
+     * Timestamp fields may have 2 or 3 digits for centiseconds/milliseconds.
      */
     private fun parseLrc(lrc: String): List<LyricLine> {
         val regex = Regex("""^\[(\d{2}):(\d{2})\.(\d{2,3})\]\s?(.*)$""")
@@ -110,7 +110,7 @@ class LyricsRepository {
             .mapNotNull { line ->
                 regex.find(line.trim())?.let { match ->
                     val (min, sec, sub, text) = match.destructured
-                    // Normalise en millisecondes (2 chiffres → centièmes, 3 → millièmes)
+                    // Normalize to milliseconds (2 digits → centiseconds, 3 → milliseconds)
                     val subMs = sub.padEnd(3, '0').toLong()
                     val timeMs = (min.toLong() * 60 + sec.toLong()) * 1_000L + subMs
                     LyricLine(timeMs, text.trim())

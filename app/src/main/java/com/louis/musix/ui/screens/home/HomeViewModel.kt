@@ -14,7 +14,7 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
 /**
- * Etat du carrousel "Tendances" — chargement asynchrone via NewPipeExtractor.
+ * State for the "Trending" carousel — loaded asynchronously via NewPipeExtractor.
  */
 sealed interface TrendingState {
     data object Loading : TrendingState
@@ -27,7 +27,7 @@ class HomeViewModel(
     private val libraryRepo: LibraryRepository,
 ) : ViewModel() {
 
-    // Carrousels locaux : viennent de Room, instantanes, limites a 10
+    // Local carousels: come from Room, instant, capped at 10
     val recentlyPlayed: StateFlow<List<Song>> = libraryRepo.history
         .map { it.take(10) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
@@ -36,7 +36,7 @@ class HomeViewModel(
         .map { it.take(10) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
-    // Carrousel reseau : tendances YouTube, fetch one-shot au demarrage
+    // Network carousel: YouTube trending, fetched once at startup
     private val _trending = MutableStateFlow<TrendingState>(TrendingState.Loading)
     val trending: StateFlow<TrendingState> = _trending.asStateFlow()
 
@@ -50,7 +50,7 @@ class HomeViewModel(
             _trending.value = try {
                 TrendingState.Success(youtubeRepo.getTrending())
             } catch (e: Exception) {
-                TrendingState.Error(e.localizedMessage ?: "Erreur reseau")
+                TrendingState.Error(e.localizedMessage ?: "Network error")
             }
         }
     }

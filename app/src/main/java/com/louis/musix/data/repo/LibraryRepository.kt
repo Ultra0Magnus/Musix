@@ -16,8 +16,8 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 
 /**
- * Point d'entrée unique pour toutes les opérations de bibliothèque locale.
- * Cache les chansons, gère les favoris, l'historique et les playlists.
+ * Single entry point for all local library operations.
+ * Caches songs and manages favorites, history, and playlists.
  */
 class LibraryRepository(
     private val songDao: SongDao,
@@ -26,11 +26,11 @@ class LibraryRepository(
     private val playlistDao: PlaylistDao,
 ) {
 
-    // ─── Cache chanson (nécessaire avant toute opération FK) ──────────────────
+    // ─── Song cache (required before any FK operation) ────────────────────────
 
     suspend fun cacheSong(song: Song) = songDao.upsert(SongEntity.fromDomain(song))
 
-    // ─── Favoris ──────────────────────────────────────────────────────────────
+    // ─── Favorites ────────────────────────────────────────────────────────────
 
     val favoriteSongs: Flow<List<Song>> =
         favoriteDao.getFavoriteSongs().map { list -> list.map { it.toDomain() } }
@@ -46,7 +46,7 @@ class LibraryRepository(
         }
     }
 
-    // ─── Historique ───────────────────────────────────────────────────────────
+    // ─── History ──────────────────────────────────────────────────────────────
 
     val history: Flow<List<Song>> = historyDao.getHistory().map { list ->
         list.map { entry ->

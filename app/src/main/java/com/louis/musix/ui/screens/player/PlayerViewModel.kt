@@ -18,7 +18,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
-// ─── États de l'UI des paroles ────────────────────────────────────────────────
+// ─── Lyrics UI states ─────────────────────────────────────────────────────────
 
 sealed interface LyricsUiState {
     data object Idle         : LyricsUiState
@@ -29,7 +29,7 @@ sealed interface LyricsUiState {
     data class  Synced(val lines: List<LyricLine>)  : LyricsUiState
 }
 
-// ─── État de l'écran player ────────────────────────────────────────────────────
+// ─── Player screen state ──────────────────────────────────────────────────────
 
 data class PlayerUiState(
     val song: Song? = null,
@@ -39,18 +39,18 @@ data class PlayerUiState(
     val durationMs: Long = 0L,
     val isFavorite: Boolean = false,
     val error: String? = null,
-    // File d'attente
+    // Queue
     val queue: List<Song> = emptyList(),
     val queueSize: Int = 0,
     val currentQueueIndex: Int = 0,
-    // Modes lecture
+    // Playback modes
     val shuffleEnabled: Boolean = false,
     val repeatMode: RepeatMode = RepeatMode.OFF,
-    // Paroles
+    // Lyrics
     val lyricsState: LyricsUiState = LyricsUiState.Idle,
 )
 
-// ─── ViewModel ─────────────────────────────────────────────────────────────────
+// ─── ViewModel ────────────────────────────────────────────────────────────────
 
 class PlayerViewModel(
     private val repository: YouTubeRepository,
@@ -67,7 +67,7 @@ class PlayerViewModel(
     private var lyricsJob: Job?   = null
 
     init {
-        // ── Synchroniser l'état du controller → UI ───────────────────────────
+        // ── Sync controller state → UI ────────────────────────────────────────
         viewModelScope.launch {
             playerController.state.collect { s ->
                 val prevSong = _uiState.value.song
@@ -85,7 +85,7 @@ class PlayerViewModel(
                     song              = newSong ?: it.song,
                 )}
 
-                // Morceau changé (auto-advance inclus) → favoris + paroles
+                // Track changed (auto-advance included) → update favorites + lyrics
                 if (newSong != null && newSong.id != prevSong?.id) {
                     observeFavorite(newSong)
                     loadLyrics(newSong)
@@ -93,7 +93,7 @@ class PlayerViewModel(
             }
         }
 
-        // ── Charger la chanson déposée par la navigation ─────────────────────
+        // ── Load the song deposited by navigation ─────────────────────────────
         val pending = songHolder.current
         if (pending != null) {
             songHolder.current = null
@@ -103,10 +103,10 @@ class PlayerViewModel(
             songHolder.pendingQueueIndex = 0
 
             if (pendingQueue != null) {
-                // Vient d'une playlist / album → file d'attente imposée, pas d'auto-queue
+                // From a playlist / album → imposed queue, no artist auto-queue
                 loadAndPlayQueue(pendingQueue, pendingQueueIndex)
             } else {
-                // Lecture isolée → auto-queue par artiste
+                // Standalone play → artist auto-queue
                 loadAndPlay(pending)
             }
         } else {
@@ -118,7 +118,7 @@ class PlayerViewModel(
         }
     }
 
-    // ─── Actions publiques ────────────────────────────────────────────────────
+    // ─── Public actions ───────────────────────────────────────────────────────
 
     fun loadAndPlay(song: Song) {
         viewModelScope.launch {
@@ -130,7 +130,7 @@ class PlayerViewModel(
                 libraryRepo.logHistory(song)
                 _uiState.update { it.copy(isLoadingAudio = false) }
 
-                // Queue en arrière-plan (morceaux similaires)
+                // Build queue in background (similar tracks by artist)
                 launch {
                     try {
                         val related = repository.search(song.artist)
@@ -144,7 +144,7 @@ class PlayerViewModel(
                 _uiState.update {
                     it.copy(
                         isLoadingAudio = false,
-                        error = "Impossible de charger : ${e.localizedMessage}",
+                        error = "Failed to load: ${e.localizedMessage}",
                     )
                 }
             }
@@ -152,9 +152,9 @@ class PlayerViewModel(
     }
 
     /**
-     * Joue [songs[startIndex]] et charge toute la liste comme file d'attente.
-     * Contrairement à [loadAndPlay], ne déclenche PAS l'auto-queue par artiste.
-     * Utilisé pour les playlists et les albums.
+     * Plays [songs[startIndex]] and loads the full list as the queue.
+     * Unlike [loadAndPlay], does NOT trigger the artist auto-queue.
+     * Used for playlists and albums.
      */
     fun loadAndPlayQueue(songs: List<Song>, startIndex: Int = 0) {
         val song = songs.getOrNull(startIndex) ?: return
@@ -170,20 +170,20 @@ class PlayerViewModel(
                 _uiState.update {
                     it.copy(
                         isLoadingAudio = false,
-                        error = "Impossible de charger : ${e.localizedMessage}",
+                        error = "Failed to load: ${e.localizedMessage}",
                     )
                 }
             }
         }
     }
 
-    // Lecture
+    // Playback
     fun togglePlayPause()  = playerController.togglePlayPause()
     fun seekTo(ms: Long)   = playerController.seekTo(ms)
     fun skipToNext()       = playerController.skipToNext()
     fun skipToPrevious()   = playerController.skipToPrevious()
 
-    // File d'attente
+    // Queue
     fun addToQueue(song: Song)       = playerController.addToQueue(song)
     fun removeFromQueue(index: Int)  = playerController.removeFromQueue(index)
 
@@ -191,13 +191,13 @@ class PlayerViewModel(
     fun toggleShuffle()   = playerController.toggleShuffle()
     fun cycleRepeatMode() = playerController.cycleRepeatMode()
 
-    // Favoris
+    // Favorites
     fun toggleFavorite() {
         val song = _uiState.value.song ?: return
         viewModelScope.launch { libraryRepo.toggleFavorite(song) }
     }
 
-    // ─── Paroles ─────────────────────────────────────────────────────────────
+    // ─── Lyrics ───────────────────────────────────────────────────────────────
 
     private fun loadLyrics(song: Song) {
         lyricsJob?.cancel()
@@ -215,7 +215,7 @@ class PlayerViewModel(
         }
     }
 
-    // ─── Privé ───────────────────────────────────────────────────────────────
+    // ─── Private ──────────────────────────────────────────────────────────────
 
     private fun observeFavorite(song: Song) {
         favoriteJob?.cancel()

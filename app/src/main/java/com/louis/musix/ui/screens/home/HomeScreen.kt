@@ -42,37 +42,37 @@ fun HomeScreen(
     ) {
         item {
             Text(
-                text = "Bonjour",
+                text = "Hello",
                 style = MaterialTheme.typography.headlineMedium,
                 color = MaterialTheme.colorScheme.onBackground,
                 modifier = Modifier.padding(horizontal = 16.dp),
             )
         }
 
-        // ─── Continuer l'ecoute ──────────────────────────────────────────────
+        // ─── Continue Listening ───────────────────────────────────────────────
         item {
             Section(
-                title = "Continuer l'ecoute",
-                emptyText = "Aucune ecoute recente",
+                title = "Continue Listening",
+                emptyText = "No recent plays",
                 songs = recentlyPlayed,
                 onSongClick = onSongClick,
             )
         }
 
-        // ─── Tes favoris ─────────────────────────────────────────────────────
+        // ─── Your Favorites ───────────────────────────────────────────────────
         item {
             Section(
-                title = "Tes favoris",
-                emptyText = "Aucun favori pour l'instant",
+                title = "Your Favorites",
+                emptyText = "No favorites yet",
                 songs = favorites,
                 onSongClick = onSongClick,
             )
         }
 
-        // ─── Tendances YouTube ───────────────────────────────────────────────
+        // ─── YouTube Trending ─────────────────────────────────────────────────
         item {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                SectionTitle("Tendances YouTube")
+                SectionTitle("YouTube Trending")
                 when (val state = trending) {
                     is TrendingState.Loading -> ShimmerCarousel()
                     is TrendingState.Success -> SongCarousel(state.songs, onSongClick)
@@ -83,7 +83,7 @@ fun HomeScreen(
     }
 }
 
-// ─── Sous-composants ──────────────────────────────────────────────────────────
+// ─── Sub-composables ──────────────────────────────────────────────────────────
 
 @Composable
 private fun Section(
@@ -170,7 +170,7 @@ private fun ErrorMessage(message: String) {
         contentAlignment = Alignment.CenterStart,
     ) {
         Text(
-            text = "Erreur tendances : $message",
+            text = "Trending error: $message",
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.error,
         )
