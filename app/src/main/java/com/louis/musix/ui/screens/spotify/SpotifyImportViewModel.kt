@@ -11,6 +11,7 @@ import com.louis.musix.data.spotify.model.SpotifyExportItem
 import com.louis.musix.data.spotify.model.SpotifyExportTrack
 import com.louis.musix.data.spotify.model.SpotifyLibraryExport
 import com.louis.musix.data.spotify.model.SpotifyPlaylistExport
+import com.louis.musix.data.spotify.model.SpotifyStreamingEntry
 import com.louis.musix.data.spotify.model.SpotifyTrack
 import com.louis.musix.domain.model.Song
 import kotlinx.coroutines.CancellationException
@@ -110,19 +111,125 @@ class SpotifyImportViewModel(
                 var tracksImported   = 0
                 var playlistsCreated = 0
 
-                // YourLibrary.json → playlist "Spotify - Titres aimés"
+                // ── Séparer les fichiers par type ─────────────────────────────
+                val streamingFiles = files.entries.filter {
+                    it.key.contains("Streaming_History_Audio", ignoreCase = true)
+                }
                 val libraryEntry = files.entries.firstOrNull {
                     it.key.contains("YourLibrary", ignoreCase = true)
                 }
+                val playlistFiles = files.entries.filter { (name, _) ->
+                    !name.contains("Streaming_History", ignoreCase = true) &&
+                    !name.contains("YourLibrary", ignoreCase = true) &&
+                    !name.contains("Streaming_History_Video", ignoreCase = true)
+                }
+
+                // ── A. Historique d'écoute étendu ─────────────────────────────
+                if (streamingFiles.isNotEmpty()) {
+                    _importState.value = ImportState.Importing(
+                        0, 0, "Analyse de ${streamingFiles.size} fichier(s) d'historique…",
+                    )
+
+                    // Parser tous les fichiers
+                    val allEntries = mutableListOf<SpotifyStreamingEntry>()
+                    streamingFiles.forEach { (filename, content) ->
+                        try {
+                            val entries = json.decodeFromString<List<SpotifyStreamingEntry>>(content)
+                            allEntries.addAll(entries)
+                            Log.d(TAG, "$filename : ${entries.size} entrées")
+                        } catch (e: Exception) {
+                            Log.w(TAG, "Erreur parsing $filename : ${e.message}")
+                        }
+                    }
+                    Log.d(TAG, "Total entrées brutes : ${allEntries.size}")
+
+                    // Garder uniquement les vraies écoutes (≥ 30s, titre connu)
+                    val realPlays = allEntries.filter { e ->
+                        !e.trackName.isNullOrBlank() &&
+                        !e.artistName.isNullOrBlank() &&
+                        e.msPlayed >= 30_000L
+                    }
+                    Log.d(TAG, "Écoutes réelles (≥30s) : ${realPlays.size}")
+
+                    // ── Top 50 all-time ───────────────────────────────────────
+                    data class TrackStats(val track: String, val artist: String, val totalMs: Long)
+
+                    val topAllTime = realPlays
+                        .groupBy { "${it.trackName}|||${it.artistName}" }
+                        .map { (_, plays) ->
+                            TrackStats(
+                                plays.first().trackName!!,
+                                plays.first().artistName!!,
+                                plays.sumOf { it.msPlayed },
+                            )
+                        }
+                        .sortedByDescending { it.totalMs }
+                        .take(50)
+
+                    if (topAllTime.isNotEmpty()) {
+                        val playlistId = libraryRepo.createPlaylist("Spotify — Top 50 All Time")
+                        playlistsCreated++
+                        topAllTime.forEachIndexed { i, s ->
+                            _importState.value = ImportState.Importing(
+                                i + 1, topAllTime.size, "Top 50 all time…",
+                            )
+                            searchAndSave("${s.track} ${s.artist}") { song ->
+                                libraryRepo.addSongToPlaylist(playlistId, song)
+                                tracksImported++
+                            }
+                            delay(300)
+                        }
+                    }
+
+                    // ── Top 20 par année (3 dernières années avec données) ────
+                    val yearRegex = Regex("""^(\d{4})-""")
+                    val recentYears = realPlays
+                        .mapNotNull { yearRegex.find(it.ts)?.groupValues?.get(1) }
+                        .toSet()
+                        .sortedDescending()
+                        .take(3)
+
+                    recentYears.forEach { year ->
+                        val yearPlays = realPlays.filter { it.ts.startsWith(year) }
+                        val top20 = yearPlays
+                            .groupBy { "${it.trackName}|||${it.artistName}" }
+                            .map { (_, plays) ->
+                                TrackStats(
+                                    plays.first().trackName!!,
+                                    plays.first().artistName!!,
+                                    plays.sumOf { it.msPlayed },
+                                )
+                            }
+                            .sortedByDescending { it.totalMs }
+                            .take(20)
+
+                        if (top20.isNotEmpty()) {
+                            val playlistId = libraryRepo.createPlaylist("Spotify — Top 20 $year")
+                            playlistsCreated++
+                            top20.forEachIndexed { i, s ->
+                                _importState.value = ImportState.Importing(
+                                    i + 1, top20.size, "Top 20 $year…",
+                                )
+                                searchAndSave("${s.track} ${s.artist}") { song ->
+                                    libraryRepo.addSongToPlaylist(playlistId, song)
+                                    tracksImported++
+                                }
+                                delay(300)
+                            }
+                        }
+                    }
+                }
+
+                // ── B. YourLibrary.json → playlist "Spotify — Titres aimés" ──
                 if (libraryEntry != null) {
-                    _importState.value = ImportState.Importing(0, 0, "Lecture de YourLibrary.json...")
+                    _importState.value = ImportState.Importing(0, 0, "Lecture de YourLibrary.json…")
                     try {
                         val library = json.decodeFromString<SpotifyLibraryExport>(libraryEntry.value)
                         val tracks  = library.tracks.filter { it.track.isNotBlank() }
                         Log.d(TAG, "${tracks.size} titres dans YourLibrary.json")
 
                         if (tracks.isNotEmpty()) {
-                            val playlistId = libraryRepo.createPlaylist("Spotify - Titres aimés")
+                            val playlistId = libraryRepo.createPlaylist("Spotify — Titres aimés")
                             playlistsCreated++
                             tracks.forEachIndexed { i, t ->
                                 _importState.value = ImportState.Importing(
@@ -140,10 +247,7 @@ class SpotifyImportViewModel(
                     }
                 }
 
-                // PlaylistX.json → playlists individuelles
-                val playlistFiles = files.entries.filter {
-                    !it.key.contains("YourLibrary", ignoreCase = true)
-                }
+                // ── C. Playlist*.json → playlists individuelles ───────────────
                 playlistFiles.forEach { (filename, content) ->
                     try {
                         val playlist   = json.decodeFromString<SpotifyPlaylistExport>(content)

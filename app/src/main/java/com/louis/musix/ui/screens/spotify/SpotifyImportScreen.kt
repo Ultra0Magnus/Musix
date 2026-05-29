@@ -142,10 +142,11 @@ private fun IdleContent(
         )
 
         Text(
-            text = "Demande ton export de données sur spotify.com/account/privacy " +
-                   "(mail reçu sous 5 jours). Extrais le ZIP, " +
-                   "puis sélectionne les fichiers YourLibrary.json " +
-                   "et/ou les fichiers Playlist*.json.",
+            text = "Demande ton export sur spotify.com/account/privacy " +
+                   "(mail reçu sous 5 jours). Extrais le ZIP, puis sélectionne :\n\n" +
+                   "• Streaming_History_Audio_*.json → crée un Top 50 all time + Top 20 par année\n" +
+                   "• YourLibrary.json → tes titres aimés\n" +
+                   "• Playlist*.json → tes playlists",
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center,
