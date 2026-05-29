@@ -7,7 +7,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.ArrowBackIosNew
 import androidx.compose.material3.CircularProgressIndicator
@@ -44,7 +44,7 @@ import org.koin.androidx.compose.koinViewModel
 fun AlbumDetailScreen(
     albumName: String,
     playlistUrl: String,
-    onSongClick: (Song) -> Unit,
+    onSongClick: (songs: List<Song>, index: Int) -> Unit,
     onBack: () -> Unit,
 ) {
     val viewModel: AlbumDetailViewModel = koinViewModel()
@@ -95,8 +95,14 @@ fun AlbumDetailScreen(
                         )
                     }
 
-                    items(items = s.songs, key = { it.id }) { song ->
-                        SongRow(song = song, onClick = onSongClick)
+                    itemsIndexed(
+                        items = s.songs,
+                        key   = { i, song -> "${i}_${song.id}" },
+                    ) { index, song ->
+                        SongRow(
+                            song    = song,
+                            onClick = { onSongClick(s.songs, index) },
+                        )
                         HorizontalDivider(
                             modifier = Modifier.padding(horizontal = 16.dp),
                             color    = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f),

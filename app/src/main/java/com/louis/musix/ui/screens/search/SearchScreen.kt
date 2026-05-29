@@ -15,6 +15,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.outlined.FavoriteBorder
+import androidx.compose.material.icons.outlined.History
 import androidx.compose.material.icons.outlined.PlaylistAdd
 import androidx.compose.material.icons.outlined.QueueMusic
 import androidx.compose.material.icons.outlined.Search
@@ -65,6 +66,7 @@ fun SearchScreen(
 
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val query by viewModel.query.collectAsStateWithLifecycle()
+    val searchHistory by viewModel.searchHistory.collectAsStateWithLifecycle()
     val keyboard = LocalSoftwareKeyboardController.current
     val scope = rememberCoroutineScope()
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
@@ -226,12 +228,43 @@ fun SearchScreen(
         when (val state = uiState) {
 
             is SearchUiState.Idle -> {
-                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text(
-                        "Tape un artiste ou un titre pour commencer",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
+                if (searchHistory.isEmpty()) {
+                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        Text(
+                            "Tape un artiste ou un titre pour commencer",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                } else {
+                    Column(modifier = Modifier.fillMaxSize().padding(horizontal = 8.dp)) {
+                        Text(
+                            "Recherches récentes",
+                            style = MaterialTheme.typography.labelLarge,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(start = 8.dp, top = 8.dp, bottom = 4.dp),
+                        )
+                        searchHistory.forEach { histQuery ->
+                            TextButton(
+                                onClick  = { viewModel.searchFromHistory(histQuery) },
+                                modifier = Modifier.fillMaxWidth(),
+                            ) {
+                                Icon(
+                                    Icons.Outlined.History,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(18.dp),
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                                Spacer(Modifier.size(12.dp))
+                                Text(
+                                    histQuery,
+                                    modifier = Modifier.weight(1f),
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurface,
+                                )
+                            }
+                        }
+                    }
                 }
             }
 
@@ -264,6 +297,27 @@ fun SearchScreen(
                             color = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f),
                         )
                     }
+                    // Bouton "Charger plus"
+                    if (state.nextPage != null || state.isLoadingMore) {
+                        item {
+                            Box(
+                                modifier = Modifier.fillMaxWidth().padding(8.dp),
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                if (state.isLoadingMore) {
+                                    CircularProgressIndicator(modifier = Modifier.size(28.dp))
+                                } else {
+                                    TextButton(
+                                        onClick  = viewModel::loadMore,
+                                        modifier = Modifier.fillMaxWidth(),
+                                    ) {
+                                        Text("Charger plus de résultats")
+                                    }
+                                }
+                            }
+                        }
+                    }
+
                     item { Spacer(Modifier.height(8.dp)) }
                 }
             }

@@ -5,7 +5,9 @@ import com.louis.musix.domain.model.ArtistAlbum
 import com.louis.musix.domain.model.Song
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import org.schabi.newpipe.extractor.ListInfo
 import org.schabi.newpipe.extractor.MediaFormat
+import org.schabi.newpipe.extractor.Page
 import org.schabi.newpipe.extractor.ServiceList
 import org.schabi.newpipe.extractor.playlist.PlaylistInfo
 import org.schabi.newpipe.extractor.playlist.PlaylistInfoItem
@@ -13,14 +15,56 @@ import org.schabi.newpipe.extractor.search.SearchInfo
 import org.schabi.newpipe.extractor.stream.StreamInfo
 import org.schabi.newpipe.extractor.stream.StreamInfoItem
 
-private const val TAG = "Musix.YouTube"
+private const val TAG          = "Musix.YouTube"
+private const val CACHE_TTL_MS = 5 * 60 * 60 * 1000L  // 5 heures (URL YouTube ~6h)
 
 class YouTubeRepository {
 
     private val youtube = ServiceList.YouTube
 
+    // ─── Cache des URLs audio (en mémoire, TTL 5h) ─────────────────────────────
+
+    private data class CachedUrl(val url: String, val expiresAt: Long)
+    private val urlCache = mutableMapOf<String, CachedUrl>()
+
     // ─── Recherche ──────────────────────────────────────────────────────────────
 
+    /** Résultat paginé d'une recherche YouTube. */
+    data class SearchResult(
+        val songs:     List<Song>,
+        val nextPage:  Page?,
+        val searchUrl: String,
+    )
+
+    /**
+     * Recherche paginée — retourne la première page + un token [SearchResult.nextPage]
+     * pour charger la suite via [searchMore].
+     */
+    suspend fun searchPaged(query: String): SearchResult = withContext(Dispatchers.IO) {
+        val handler = youtube.searchQHFactory.fromQuery(query, listOf("music_songs"), "")
+        val info    = SearchInfo.getInfo(youtube, handler)
+        SearchResult(
+            songs     = info.relatedItems.filterIsInstance<StreamInfoItem>().map { it.toSong() },
+            nextPage  = info.nextPage,
+            searchUrl = handler.url,
+        )
+    }
+
+    /** Charge la page suivante à partir du token renvoyé par [searchPaged] ou [searchMore]. */
+    suspend fun searchMore(searchUrl: String, nextPage: Page): SearchResult =
+        withContext(Dispatchers.IO) {
+            val more = ListInfo.getMoreItems(youtube, searchUrl, nextPage)
+            SearchResult(
+                songs     = more.items.filterIsInstance<StreamInfoItem>().map { it.toSong() },
+                nextPage  = more.nextPage,
+                searchUrl = searchUrl,
+            )
+        }
+
+    /**
+     * Recherche simple (sans pagination) — conservée pour l'auto-queue artiste
+     * dans [PlayerViewModel] et les autres usages internes.
+     */
     suspend fun search(query: String): List<Song> = withContext(Dispatchers.IO) {
         val searchHandler = youtube.searchQHFactory
             .fromQuery(query, listOf("music_songs"), "")
@@ -96,20 +140,37 @@ class YouTubeRepository {
 
     /**
      * Retourne l'URL directe du flux audio pour une vidéo YouTube.
+     * Les URLs sont mises en cache en mémoire avec un TTL de 5h (YouTube ~6h).
+     * Sur un replay rapide dans la même session, aucun appel réseau supplémentaire.
+     */
+    suspend fun getAudioStreamUrl(videoUrl: String): String = withContext(Dispatchers.IO) {
+        val normalizedUrl = normalizeYouTubeUrl(videoUrl)
+        val videoId       = extractVideoId(normalizedUrl) ?: normalizedUrl
+
+        // ── Vérifier le cache ────────────────────────────────────────────────────
+        val cached = urlCache[videoId]
+        if (cached != null && System.currentTimeMillis() < cached.expiresAt) {
+            Log.d(TAG, "✓ URL audio depuis le cache ($videoId)")
+            return@withContext cached.url
+        }
+
+        // ── Fetch fraîche ────────────────────────────────────────────────────────
+        val url = fetchFreshAudioUrl(normalizedUrl)
+        urlCache[videoId] = CachedUrl(url, System.currentTimeMillis() + CACHE_TTL_MS)
+        Log.d(TAG, "URL mise en cache ($videoId, expire dans 5h)")
+        url
+    }
+
+    /**
+     * Extraction réseau — appelé uniquement si le cache est vide ou expiré.
      *
      * Délègue entièrement à NewPipeExtractor v0.26.2 qui gère en interne :
      *  - Sélection du client InnerTube (ANDROID, IOS, WEB…)
      *  - Déchiffrement de signature (cipher)
      *  - Paramètre anti-throttle `n`
-     *  - Détection de bot / poToken si disponible
-     *
-     * ⚠️ URLs expirantes (~6h) — toujours appeler au moment du play, jamais cacher.
      */
-    suspend fun getAudioStreamUrl(videoUrl: String): String = withContext(Dispatchers.IO) {
-        // music.youtube.com/watch?v=ID → https://www.youtube.com/watch?v=ID
-        // NewPipeExtractor ne gère pas music.youtube.com pour les streams
-        val normalizedUrl = normalizeYouTubeUrl(videoUrl)
-        Log.d(TAG, "Extraction audio : $normalizedUrl")
+    private fun fetchFreshAudioUrl(normalizedUrl: String): String {
+        Log.d(TAG, "Extraction audio (réseau) : $normalizedUrl")
 
         val streamInfo = try {
             StreamInfo.getInfo(youtube, normalizedUrl)
@@ -125,7 +186,6 @@ class YouTubeRepository {
         }
 
         // ── Priorité 1 : flux audio-only adaptatifs ─────────────────────────────
-        // (nécessitent un appel InnerTube séparé — parfois bloqué par bot detection)
         val audioOnlyStreams = streamInfo.audioStreams.filter { it.isUrl && it.content.isNotBlank() }
 
         if (audioOnlyStreams.isNotEmpty()) {
@@ -133,25 +193,20 @@ class YouTubeRepository {
                 ?: audioOnlyStreams.firstOrNull { it.format == MediaFormat.WEBMA_OPUS || it.format == MediaFormat.WEBMA }
                 ?: audioOnlyStreams.first()
             Log.d(TAG, "✓ Flux audio-only : ${chosen.format}, url=${chosen.content.take(80)}…")
-            return@withContext chosen.content
+            return chosen.content
         }
 
-        // ── Priorité 2 : flux combiné (audio + vidéo dans le même conteneur) ──
-        // Format 18 (360p MP4 AAC 128kbps) — présent dans le HTML de la page YouTube.
-        // ExoPlayer lit uniquement la piste audio → qualité identique à Spotify gratuit.
+        // ── Priorité 2 : flux combiné (audio + vidéo dans le même conteneur) ───
         val combinedStreams = streamInfo.videoStreams.filter { it.isUrl && it.content.isNotBlank() }
 
         if (combinedStreams.isNotEmpty()) {
             val chosen = combinedStreams.first()
             Log.d(TAG, "✓ Flux combiné (audio+vidéo) : ${chosen.format}, url=${chosen.content.take(80)}…")
-            return@withContext chosen.content
+            return chosen.content
         }
 
-        // ── Aucun flux disponible ────────────────────────────────────────────────
         Log.e(TAG, "Aucun flux : audioOnly=${streamInfo.audioStreams.size}, " +
-                "combined=${streamInfo.videoStreams.size}, " +
-                "videoOnly=${streamInfo.videoOnlyStreams.size}")
-        streamInfo.errors.forEach { Log.w(TAG, "Erreur non-fatale : ${it.message}") }
+                "combined=${streamInfo.videoStreams.size}, videoOnly=${streamInfo.videoOnlyStreams.size}")
         throw Exception("Aucun flux disponible pour cette vidéo")
     }
 

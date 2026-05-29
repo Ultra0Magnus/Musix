@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.ArrowBackIosNew
@@ -60,7 +61,7 @@ import org.koin.androidx.compose.koinViewModel
 @Composable
 fun ArtistScreen(
     artistName: String,
-    onSongClick: (Song) -> Unit,
+    onSongClick: (songs: List<Song>, index: Int) -> Unit,
     onAlbumClick: (ArtistAlbum) -> Unit,
     onBack: () -> Unit,
 ) {
@@ -119,8 +120,14 @@ fun ArtistScreen(
                     )
                 }
                 else -> {
-                    items(items = state.topSongs, key = { it.id }) { song ->
-                        SongRow(song = song, onClick = onSongClick)
+                    itemsIndexed(
+                        items = state.topSongs,
+                        key   = { i, s -> "${i}_${s.id}" },
+                    ) { index, song ->
+                        SongRow(
+                            song    = song,
+                            onClick = { onSongClick(state.topSongs, index) },
+                        )
                         HorizontalDivider(
                             modifier = Modifier.padding(horizontal = 16.dp),
                             color    = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f),

@@ -110,7 +110,7 @@ fun MusixNavHost(
             val artistName = backStackEntry.arguments?.getString("name") ?: ""
             ArtistScreen(
                 artistName   = artistName,
-                onSongClick  = { song -> playSong(song) },
+                onSongClick  = { songs, index -> playFromList(songs, index) },
                 onAlbumClick = { album ->
                     navController.navigate(
                         Routes.AlbumDetail.createRoute(album.name, album.playlistUrl)
@@ -132,7 +132,7 @@ fun MusixNavHost(
             AlbumDetailScreen(
                 albumName   = albumName,
                 playlistUrl = playlistUrl,
-                onSongClick = { song -> playSong(song) },
+                onSongClick = { songs, index -> playFromList(songs, index) },
                 onBack      = { navController.popBackStack() },
             )
         }
