@@ -2,7 +2,7 @@
 
 Personal Android music streaming app powered by YouTube (NewPipeExtractor). Distributed as a sideloaded APK — no Play Store.
 
-**Current version: v0.9.1** — Offline mode (Downloads) / Bug fixes / Top 50 Suggestions / Settings
+**Current version: v0.9.2** — Stream caching (ExoPlayer) / Offline mode / Top 50 Suggestions / Settings
 
 ---
 
@@ -139,7 +139,7 @@ com.louis.musix
 - ✅ **Phase 9** — Shuffle, Repeat, editable queue, synced lyrics (LRCLIB)
 - ✅ **Phase 10** — Paginated search ("Load more"), Search history, clear button
 - ✅ **Phase 12** — Offline Mode (v0.9.1): Download tracks, Local playback, Storage management
-- 🔄 **Phase 13** — Data Saving: ExoPlayer SimpleCache integration
+- ✅ **Phase 13** — Data Saving (v0.9.2): ExoPlayer SimpleCache integration, Auto-eviction (300 MB max)
 - 🔄 **Phase 14** — Robustness: Network monitoring, Auto-skip on stream error
 - 🔄 **Phase 15** — Android Auto support
 - 🔄 **Phase 16** — Sleep Timer & Equalizer
