@@ -1,6 +1,7 @@
 package com.louis.musix.di
 
 import com.louis.musix.data.SelectedSongHolder
+import com.louis.musix.domain.util.NetworkMonitor
 import com.louis.musix.data.download.DownloadManager
 import com.louis.musix.player.cache.CacheManager
 import com.louis.musix.data.local.MusixDatabase
@@ -42,6 +43,9 @@ val appModule = module {
     single { get<MusixDatabase>().historyDao() }
     single { get<MusixDatabase>().playlistDao() }
     single { LibraryRepository(get(), get(), get(), get()) }
+
+    // ─── Utilities ────────────────────────────────────────────────────────────
+    single { NetworkMonitor(androidContext()) }
 
     // ─── Downloads & Cache ───────────────────────────────────────────────────
     single { DownloadManager(androidContext(), get(), get()) }

@@ -14,18 +14,27 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.louis.musix.data.spotify.SpotifyAuthManager
+import com.louis.musix.domain.util.NetworkMonitor
 import com.louis.musix.player.PlayerController
 import com.louis.musix.ui.components.MiniPlayer
 import com.louis.musix.ui.navigation.MusixBottomBar
@@ -88,6 +97,9 @@ private fun MusixContent() {
     val playerController: PlayerController = koinInject()
     val playerState by playerController.state.collectAsStateWithLifecycle()
 
+    val networkMonitor: NetworkMonitor = koinInject()
+    val isOnline by networkMonitor.isOnline.collectAsStateWithLifecycle()
+
     // ── Request POST_NOTIFICATIONS permission on Android 13+ ──────────────────
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
         val launcher = rememberLauncherForActivityResult(
@@ -107,6 +119,28 @@ private fun MusixContent() {
         bottomBar = {
             if (showBottomBar) {
                 Column {
+                    // ── Offline Banner ──────────────────────────────────────────
+                    AnimatedVisibility(
+                        visible = !isOnline,
+                        enter = slideInVertically(initialOffsetY = { it }) + fadeIn(),
+                        exit  = slideOutVertically(targetOffsetY = { it }) + fadeOut(),
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .background(MaterialTheme.colorScheme.error)
+                                .padding(vertical = 4.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = "No internet connection. Showing downloaded music only.",
+                                color = MaterialTheme.colorScheme.onError,
+                                style = MaterialTheme.typography.labelSmall,
+                                textAlign = TextAlign.Center
+                            )
+                        }
+                    }
+
                     // ── MiniPlayer — animated vertical slide ──────────────────
                     AnimatedVisibility(
                         visible = playerState.hasActiveMedia,

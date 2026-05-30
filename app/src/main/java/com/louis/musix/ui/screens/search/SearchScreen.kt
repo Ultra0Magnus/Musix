@@ -48,8 +48,11 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.louis.musix.data.repo.LibraryRepository
 import com.louis.musix.domain.model.Playlist
 import com.louis.musix.domain.model.Song
+import org.koin.compose.koinInject
 import com.louis.musix.player.PlayerController
 import com.louis.musix.ui.components.SongRow
+import com.louis.musix.domain.util.NetworkMonitor
+import org.koin.compose.koinInject
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import org.koin.androidx.compose.koinViewModel
@@ -62,6 +65,14 @@ fun SearchScreen(
     onArtistClick: (String) -> Unit = {},
 ) {
     val viewModel: SearchViewModel = koinViewModel()
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val query by viewModel.query.collectAsStateWithLifecycle()
+    val searchHistory by viewModel.searchHistory.collectAsStateWithLifecycle()
+
+    val networkMonitor: NetworkMonitor = koinInject()
+    val isOnline by networkMonitor.isOnline.collectAsStateWithLifecycle()
+
+    // Needs to interact with Room (playlists, favorites) when the BottomSheet opens
     val libraryRepo: LibraryRepository = koinInject()
     val playerController: PlayerController = koinInject()
 
@@ -192,15 +203,15 @@ fun SearchScreen(
     Column(modifier = Modifier.fillMaxSize()) {
 
         // Search bar
-        OutlinedTextField(
-            value = query,
-            onValueChange = viewModel::onQueryChange,
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 12.dp),
-            placeholder = {
-                Text("Artist, title, album...", color = MaterialTheme.colorScheme.onSurfaceVariant)
-            },
+            OutlinedTextField(
+                value = query,
+                onValueChange = viewModel::onQueryChange,
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+                placeholder = { Text(if (isOnline) "Search songs or artists" else "Offline - Search unavailable") },
+                enabled = isOnline,
+                leadingIcon = {
+                    Icon(Icons.Outlined.Search, contentDescription = "Search", tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                },
             leadingIcon = {
                 Icon(Icons.Outlined.Search, contentDescription = null)
             },
@@ -218,7 +229,7 @@ fun SearchScreen(
             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
             keyboardActions = KeyboardActions(onSearch = {
                 keyboard?.hide()
-                viewModel.onSearch()
+                if (isOnline) viewModel.onSearch()
             }),
             colors = OutlinedTextFieldDefaults.colors(
                 focusedBorderColor = MaterialTheme.colorScheme.primary,

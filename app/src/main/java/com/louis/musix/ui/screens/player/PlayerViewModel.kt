@@ -171,6 +171,11 @@ class PlayerViewModel(
                         error = "Failed to load: ${e.localizedMessage}",
                     )
                 }
+                // Auto-skip on initial manual load failure
+                launch {
+                    kotlinx.coroutines.delay(2000)
+                    playerController.skipToNext()
+                }
             }
         }
     }
@@ -200,6 +205,11 @@ class PlayerViewModel(
                         isLoadingAudio = false,
                         error = "Failed to load: ${e.localizedMessage}",
                     )
+                }
+                // Auto-skip on manual queue load failure
+                launch {
+                    kotlinx.coroutines.delay(2000)
+                    playerController.skipToNext()
                 }
             }
         }

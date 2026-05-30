@@ -7,6 +7,7 @@ import android.util.Log
 import androidx.core.content.ContextCompat
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
+import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.session.MediaController
 import androidx.media3.session.SessionToken
@@ -134,7 +135,17 @@ class PlayerController(
                 val next = _queue.getOrNull(queueIdx + 1) ?: run {
                     Log.d(TAG, "STATE_ENDED → end of queue")
                     return
-                }
+        override fun onPlayerError(error: PlaybackException) {
+            Log.e(TAG, "ExoPlayer Error: ${error.message} (code ${error.errorCode})")
+            _state.update { it.copy(isPlaying = false) }
+            
+            // v0.9.3 - Auto-skip: if playback fails, skip to next after 2 seconds
+            scope.launch {
+                delay(2000)
+                skipToNext()
+            }
+        }
+    }
                 queueIdx++
                 Log.d(TAG, "STATE_ENDED → next \"${next.title}\" ($queueIdx/${_queue.size})")
                 pushQueueState()
@@ -358,6 +369,11 @@ class PlayerController(
             setAndPlay(song, audioUrl)
         } catch (e: Exception) {
             Log.e(TAG, "autoAdvanceTo(\"${song.title}\") failed: ${e.message}")
+            // v0.9.3 - Auto-skip: if streaming URL extraction fails, skip to next after 2 seconds
+            scope.launch {
+                delay(2000)
+                skipToNext()
+            }
         }
     }
 
