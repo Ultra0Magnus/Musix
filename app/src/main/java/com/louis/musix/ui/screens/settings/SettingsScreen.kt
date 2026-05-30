@@ -8,16 +8,29 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
+
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import org.koin.androidx.compose.koinViewModel
+import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(
     onBack: () -> Unit,
 ) {
+    val viewModel: SettingsViewModel = koinViewModel()
+    val cacheSizeMb by viewModel.cacheSizeMb.collectAsStateWithLifecycle()
+    
+    // Refresh cache size when screen becomes visible
+    androidx.compose.runtime.LaunchedEffect(Unit) {
+        viewModel.updateCacheSize()
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -58,10 +71,10 @@ fun SettingsScreen(
             item { SettingsHeader("Cache & Storage") }
             item {
                 SettingsClickItem(
-                    title = "Clear Cache",
-                    subtitle = "Current size: 124 MB",
+                    title = "Clear Stream Cache",
+                    subtitle = String.format(Locale.US, "Current size: %.1f MB", cacheSizeMb),
                     icon = Icons.Default.DeleteSweep,
-                    onClick = {}
+                    onClick = { viewModel.clearCache() }
                 )
             }
 

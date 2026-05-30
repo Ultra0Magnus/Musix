@@ -2,6 +2,7 @@ package com.louis.musix.di
 
 import com.louis.musix.data.SelectedSongHolder
 import com.louis.musix.data.download.DownloadManager
+import com.louis.musix.player.cache.CacheManager
 import com.louis.musix.data.local.MusixDatabase
 import com.louis.musix.data.lyrics.LyricsRepository
 import com.louis.musix.data.newpipe.YouTubeRepository
@@ -16,6 +17,7 @@ import com.louis.musix.ui.screens.library.LibraryViewModel
 import com.louis.musix.ui.screens.player.PlayerViewModel
 import com.louis.musix.ui.screens.playlist.PlaylistDetailViewModel
 import com.louis.musix.ui.screens.search.SearchViewModel
+import com.louis.musix.ui.screens.settings.SettingsViewModel
 import com.louis.musix.ui.screens.spotify.SpotifyImportViewModel
 import org.koin.android.ext.koin.androidContext
 import org.koin.androidx.viewmodel.dsl.viewModel
@@ -41,8 +43,9 @@ val appModule = module {
     single { get<MusixDatabase>().playlistDao() }
     single { LibraryRepository(get(), get(), get(), get()) }
 
-    // ─── Downloads ────────────────────────────────────────────────────────────
+    // ─── Downloads & Cache ───────────────────────────────────────────────────
     single { DownloadManager(androidContext(), get(), get()) }
+    single { CacheManager(androidContext()) }
 
     // ─── Background player ────────────────────────────────────────────────────
     single { PlayerController(androidContext(), get(), get()) }
@@ -58,6 +61,7 @@ val appModule = module {
     viewModel { SpotifyImportViewModel(get(), get(), get(), get()) }
     viewModel { ArtistViewModel(get()) }
     viewModel { AlbumDetailViewModel(get()) }
+    viewModel { SettingsViewModel(get()) }
     // PlaylistDetailViewModel takes the id as a parameter (koinViewModel { parametersOf(id) })
     viewModel { params -> PlaylistDetailViewModel(params.get(), get()) }
 }
