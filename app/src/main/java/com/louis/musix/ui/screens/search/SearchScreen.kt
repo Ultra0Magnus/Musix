@@ -76,9 +76,6 @@ fun SearchScreen(
     val libraryRepo: LibraryRepository = koinInject()
     val playerController: PlayerController = koinInject()
 
-    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
-    val query by viewModel.query.collectAsStateWithLifecycle()
-    val searchHistory by viewModel.searchHistory.collectAsStateWithLifecycle()
     val keyboard = LocalSoftwareKeyboardController.current
     val scope = rememberCoroutineScope()
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
@@ -203,17 +200,14 @@ fun SearchScreen(
     Column(modifier = Modifier.fillMaxSize()) {
 
         // Search bar
-            OutlinedTextField(
-                value = query,
-                onValueChange = viewModel::onQueryChange,
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
-                placeholder = { Text(if (isOnline) "Search songs or artists" else "Offline - Search unavailable") },
-                enabled = isOnline,
-                leadingIcon = {
-                    Icon(Icons.Outlined.Search, contentDescription = "Search", tint = MaterialTheme.colorScheme.onSurfaceVariant)
-                },
+        OutlinedTextField(
+            value = query,
+            onValueChange = viewModel::onQueryChange,
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+            placeholder = { Text(if (isOnline) "Search songs or artists" else "Offline - Search unavailable") },
+            enabled = isOnline,
             leadingIcon = {
-                Icon(Icons.Outlined.Search, contentDescription = null)
+                Icon(Icons.Outlined.Search, contentDescription = "Search", tint = MaterialTheme.colorScheme.onSurfaceVariant)
             },
             trailingIcon = {
                 if (query.isNotEmpty()) {
