@@ -32,6 +32,8 @@ class LibraryRepository(
 
     suspend fun getSong(id: String): Song? = songDao.getSongById(id)?.toDomain()
 
+    fun getSongFlow(id: String): Flow<Song?> = songDao.getSongByIdFlow(id).map { it?.toDomain() }
+
     // ─── Downloads ────────────────────────────────────────────────────────────
 
     val downloadedSongs: Flow<List<Song>> = 

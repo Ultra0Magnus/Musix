@@ -53,7 +53,7 @@ val appModule = module {
     // ─── ViewModels ───────────────────────────────────────────────────────────
     viewModel { SearchViewModel(get()) }
     viewModel { PlayerViewModel(get(), get(), get(), get(), get(), get()) }
-    viewModel { LibraryViewModel(get()) }
+    viewModel { LibraryViewModel(get(), get()) }
     viewModel { HomeViewModel(get(), get()) }
     viewModel { SpotifyImportViewModel(get(), get(), get(), get()) }
     viewModel { ArtistViewModel(get()) }

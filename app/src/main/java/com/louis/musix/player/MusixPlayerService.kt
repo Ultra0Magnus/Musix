@@ -5,6 +5,7 @@ import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.session.MediaSession
 import androidx.media3.session.MediaSessionService
+import android.app.PendingIntent
 
 /**
  * Background audio playback service.
@@ -26,13 +27,20 @@ class MusixPlayerService : MediaSessionService() {
 
     override fun onCreate() {
         super.onCreate()
+        
+        // v0.9.1 - Fix ForegroundServiceStartNotAllowedException on Android 12+
+        val launchIntent = packageManager?.getLaunchIntentForPackage(packageName)
+        val pendingIntent = PendingIntent.getActivity(
+            this, 0, launchIntent, PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+        )
+        
         val player = ExoPlayer.Builder(this).build().also {
-            // REPEAT_MODE_OFF: ExoPlayer fires STATE_ENDED when a track finishes.
-            // The queue is managed at the app level (PlayerController._queue):
-            // STATE_ENDED → PlayerController detects the end and loads the next track.
             it.repeatMode = Player.REPEAT_MODE_OFF
         }
-        mediaSession = MediaSession.Builder(this, player).build()
+        
+        mediaSession = MediaSession.Builder(this, player)
+            .setSessionActivity(pendingIntent)
+            .build()
     }
 
     /**

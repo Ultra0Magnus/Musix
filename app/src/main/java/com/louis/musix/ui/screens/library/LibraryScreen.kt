@@ -127,7 +127,7 @@ fun LibraryScreen(
                 0 -> PlaylistsTab(playlists, onPlaylistClick, viewModel::deletePlaylist, onSpotifyImportClick)
                 1 -> FavoritesTab(favorites, onSongClick, viewModel::removeFavorite)
                 2 -> HistoryTab(history, onSongClick, viewModel::clearHistory)
-                3 -> DownloadsTab(viewModel.downloaded.collectAsStateWithLifecycle().value, onSongClick)
+                3 -> DownloadsTab(viewModel.downloaded.collectAsStateWithLifecycle().value, onSongClick, viewModel::removeDownload)
             }
         }
     }
@@ -307,7 +307,8 @@ private fun HistoryTab(
                 }
             }
             LazyColumn(modifier = Modifier.fillMaxSize()) {
-                items(history, key = { it.id }) { song ->
+                // v0.9.1 fix: removed key={it.id} to allow duplicates in full history without crash
+                items(history) { song ->
                     SongRow(song = song, onClick = onSongClick)
                     HorizontalDivider(
                         modifier = Modifier.padding(horizontal = 16.dp),
@@ -325,13 +326,38 @@ private fun HistoryTab(
 private fun DownloadsTab(
     downloaded: List<Song>,
     onSongClick: (Song) -> Unit,
+    onRemove: (Song) -> Unit,
 ) {
     if (downloaded.isEmpty()) {
         EmptyState("No downloads yet\nOffline music will appear here")
     } else {
         LazyColumn(modifier = Modifier.fillMaxSize()) {
             items(downloaded, key = { it.id }) { song ->
-                SongRow(song = song, onClick = onSongClick)
+                val dismissState = rememberSwipeToDismissBoxState(
+                    confirmValueChange = { value ->
+                        if (value == SwipeToDismissBoxValue.EndToStart) {
+                            onRemove(song)
+                            true
+                        } else false
+                    }
+                )
+                SwipeToDismissBox(
+                    state = dismissState,
+                    backgroundContent = {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(horizontal = 20.dp),
+                            contentAlignment = Alignment.CenterEnd,
+                        ) {
+                            Icon(Icons.Outlined.Delete, contentDescription = null,
+                                tint = MaterialTheme.colorScheme.error)
+                        }
+                    },
+                    enableDismissFromStartToEnd = false,
+                ) {
+                    SongRow(song = song, onClick = onSongClick)
+                }
                 HorizontalDivider(
                     modifier = Modifier.padding(horizontal = 16.dp),
                     color = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f),

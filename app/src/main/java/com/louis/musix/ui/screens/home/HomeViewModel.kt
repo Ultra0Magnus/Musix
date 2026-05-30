@@ -27,8 +27,9 @@ class HomeViewModel(
 ) : ViewModel() {
 
     // Local carousels: come from Room, instant, capped at 10
+    // v0.9.1 fix: use distinctBy to avoid duplicate keys crash if same song played multiple times
     val recentlyPlayed: StateFlow<List<Song>> = libraryRepo.history
-        .map { it.take(10) }
+        .map { it.distinctBy { song -> song.id }.take(10) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     val favorites: StateFlow<List<Song>> = libraryRepo.favoriteSongs

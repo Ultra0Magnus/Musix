@@ -2,6 +2,7 @@ package com.louis.musix.ui.screens.library
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.louis.musix.data.download.DownloadManager
 import com.louis.musix.data.repo.LibraryRepository
 import com.louis.musix.domain.model.Playlist
 import com.louis.musix.domain.model.Song
@@ -12,6 +13,7 @@ import kotlinx.coroutines.launch
 
 class LibraryViewModel(
     private val repository: LibraryRepository,
+    private val downloadManager: DownloadManager,
 ) : ViewModel() {
 
     val playlists: StateFlow<List<Playlist>> = repository.playlists
@@ -48,4 +50,11 @@ class LibraryViewModel(
     fun clearHistory() {
         viewModelScope.launch { repository.clearHistory() }
     }
+
+    // ─── Downloads ────────────────────────────────────────────────────────────
+
+    fun removeDownload(song: Song) {
+        viewModelScope.launch { downloadManager.toggleDownload(song) }
+    }
 }
+

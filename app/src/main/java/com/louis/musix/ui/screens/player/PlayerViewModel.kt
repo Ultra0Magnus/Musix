@@ -67,6 +67,7 @@ class PlayerViewModel(
 
     private var favoriteJob: Job? = null
     private var lyricsJob: Job?   = null
+    private var downloadObserverJob: Job? = null
 
     init {
         // ── Sync controller state → UI ────────────────────────────────────────
@@ -75,24 +76,41 @@ class PlayerViewModel(
                 val prevSong = _uiState.value.song
                 val newSong  = s.currentSong
 
-                _uiState.update { it.copy(
-                    isPlaying         = s.isPlaying,
-                    currentPositionMs = s.currentPositionMs,
-                    durationMs        = s.durationMs,
-                    queue             = s.queue,
-                    queueSize         = s.queueSize,
-                    currentQueueIndex = s.currentQueueIndex,
-                    shuffleEnabled    = s.shuffleEnabled,
-                    repeatMode        = s.repeatMode,
-                    song              = newSong ?: it.song,
-                )}
+                _uiState.update { currentState ->
+                    // v0.9.1 fix: Only update the song object if it's actually a DIFFERENT song.
+                    // This prevents the PlayerController (which holds an old "non-downloaded" Song object)
+                    // from overwriting the reactively updated song status from the DB.
+                    val songToDisplay = if (newSong != null) {
+                        if (currentState.song?.id == newSong.id) currentState.song else newSong
+                    } else {
+                        currentState.song
+                    }
 
-                // Track changed (auto-advance included) → update favorites + lyrics
+                    currentState.copy(
+                        isPlaying         = s.isPlaying,
+                        currentPositionMs = s.currentPositionMs,
+                        durationMs        = s.durationMs,
+                        queue             = s.queue,
+                        queueSize         = s.queueSize,
+                        currentQueueIndex = s.currentQueueIndex,
+                        shuffleEnabled    = s.shuffleEnabled,
+                        repeatMode        = s.repeatMode,
+                        song              = songToDisplay,
+                    )
+                }
+
+                // Track changed (auto-advance included) → update favorites + lyrics + download observer
                 if (newSong != null && newSong.id != prevSong?.id) {
                     observeFavorite(newSong)
                     loadLyrics(newSong)
+                    observeDownloadStatus(newSong)
                 }
             }
+        }
+
+        // ── Load initial download status for existing song ────────────────────
+        _uiState.value.song?.let { current ->
+            observeDownloadStatus(current)
         }
 
         // ── Load the song deposited by navigation ─────────────────────────────
@@ -212,9 +230,6 @@ class PlayerViewModel(
         val song = _uiState.value.song ?: return
         viewModelScope.launch {
             downloadManager.toggleDownload(song)
-            // Reload song to get updated state (isDownloaded)
-            val updatedSong = libraryRepo.getSong(song.id) ?: song
-            _uiState.update { it.copy(song = updatedSong) }
         }
     }
 
@@ -243,6 +258,17 @@ class PlayerViewModel(
         favoriteJob = viewModelScope.launch {
             libraryRepo.isFavorite(song.id).collect { fav ->
                 _uiState.update { it.copy(isFavorite = fav) }
+            }
+        }
+    }
+
+    private fun observeDownloadStatus(song: Song) {
+        downloadObserverJob?.cancel()
+        downloadObserverJob = viewModelScope.launch {
+            libraryRepo.getSongFlow(song.id).collect { updatedSong ->
+                if (updatedSong != null) {
+                    _uiState.update { it.copy(song = updatedSong) }
+                }
             }
         }
     }
