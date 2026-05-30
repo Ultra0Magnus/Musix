@@ -36,13 +36,14 @@ Personal Android music streaming app powered by YouTube (NewPipeExtractor). Dist
 
 ### Library (Room / SQLite)
 - **Favorites**: add/remove from any screen
-- **Listening history**
+- **Listening history**: with duplicate filtering
 - **Playlists**: create, rename, delete, add/remove tracks
+- **Downloads**: full offline support with swipe-to-delete
 
 ### Home
 - "Continue Listening" carousel (recent history)
 - "Your Favorites" carousel
-- "YouTube Trending" carousel (with loading skeletons)
+- **Top 50 Suggestions**: smart recommendations based on your Spotify all-time top tracks
 
 ### Spotify Import
 - OAuth2 PKCE connection
@@ -94,10 +95,11 @@ com.louis.musix
 ├── di/AppModule.kt             Koin module (all singletons and ViewModels)
 │
 ├── data/
-│   ├── newpipe/                YouTubeRepository (search, audio URL, trending, artist, albums)
+│   ├── newpipe/                YouTubeRepository (search, audio URL, artist, albums)
 │   ├── lyrics/                 LyricsRepository (LRCLIB — synced + plain lyrics)
 │   ├── local/                  Room: MusixDatabase, DAOs (song, favorite, history, playlist)
-│   ├── repo/                   LibraryRepository (favorites, history, playlists)
+│   ├── download/               DownloadManager (Background downloading + file management)
+│   ├── repo/                   LibraryRepository (favorites, history, playlists, downloads)
 │   ├── spotify/                SpotifyAuthManager + SpotifyRepository (OAuth2 PKCE)
 │   └── SelectedSongHolder.kt   Song handoff to PlayerScreen (navigation)
 │
@@ -136,7 +138,13 @@ com.louis.musix
 - ✅ **Phase 8** — Auto-queue, auto-advance, Artist & Album pages
 - ✅ **Phase 9** — Shuffle, Repeat, editable queue, synced lyrics (LRCLIB)
 - ✅ **Phase 10** — Paginated search ("Load more"), Search history, clear button
-- ✅ **Phase 11** — Full English translation
+- ✅ **Phase 12** — Offline Mode (v0.9.1): Download tracks, Local playback, Storage management
+- 🔄 **Phase 13** — Data Saving: ExoPlayer SimpleCache integration
+- 🔄 **Phase 14** — Robustness: Network monitoring, Auto-skip on stream error
+- 🔄 **Phase 15** — Android Auto support
+- 🔄 **Phase 16** — Sleep Timer & Equalizer
+- 🔄 **Phase 17** — Polish: Material You dynamic colors, UI transitions
+- 🚀 **v1.0.0** — Official Release
 
 ---
 
