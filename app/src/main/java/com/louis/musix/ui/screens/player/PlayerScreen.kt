@@ -24,8 +24,10 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Bedtime
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.outlined.ArrowBackIosNew
+import androidx.compose.material.icons.outlined.Bedtime
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.DownloadForOffline
 import androidx.compose.material.icons.outlined.FavoriteBorder
@@ -115,6 +117,17 @@ fun PlayerScreen(
     // ── Bottom sheets ─────────────────────────────────────────────────────────
     var showQueue  by remember { mutableStateOf(false) }
     var showLyrics by remember { mutableStateOf(false) }
+    var showSleepTimer by remember { mutableStateOf(false) }
+
+    if (showSleepTimer) {
+        SleepTimerBottomSheet(
+            isActive          = state.sleepTimerEndMs != null || state.sleepTimerEndOfTrack,
+            onPick            = { minutes -> viewModel.setSleepTimer(minutes); showSleepTimer = false },
+            onPickEndOfTrack  = { viewModel.setSleepTimerEndOfTrack(); showSleepTimer = false },
+            onCancel          = { viewModel.cancelSleepTimer(); showSleepTimer = false },
+            onDismiss         = { showSleepTimer = false },
+        )
+    }
 
     if (showQueue) {
         QueueBottomSheet(
@@ -143,9 +156,39 @@ fun PlayerScreen(
     ) {
         Spacer(Modifier.height(16.dp))
 
-        Row(modifier = Modifier.fillMaxWidth()) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
             IconButton(onClick = onBack) {
                 Icon(Icons.Outlined.ArrowBackIosNew, "Back", tint = MaterialTheme.colorScheme.onBackground)
+            }
+            Spacer(Modifier.weight(1f))
+
+            // Live sleep-timer countdown chip
+            val timerActive = state.sleepTimerEndMs != null || state.sleepTimerEndOfTrack
+            if (state.sleepTimerEndMs != null) {
+                var nowMs by remember { mutableStateOf(System.currentTimeMillis()) }
+                LaunchedEffect(state.sleepTimerEndMs) {
+                    while (true) {
+                        nowMs = System.currentTimeMillis()
+                        kotlinx.coroutines.delay(1000)
+                    }
+                }
+                val remaining = ((state.sleepTimerEndMs!! - nowMs) / 1000).coerceAtLeast(0)
+                Text(
+                    text = formatDuration(remaining),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.primary,
+                )
+            }
+            IconButton(onClick = { showSleepTimer = true }) {
+                Icon(
+                    imageVector = if (timerActive) Icons.Filled.Bedtime else Icons.Outlined.Bedtime,
+                    contentDescription = "Sleep timer",
+                    tint = if (timerActive) MaterialTheme.colorScheme.primary
+                           else MaterialTheme.colorScheme.onBackground,
+                )
             }
         }
 
@@ -346,6 +389,60 @@ fun PlayerScreen(
 
         Spacer(Modifier.height(8.dp))
     }
+}
+
+// ─── Queue Bottom Sheet ───────────────────────────────────────────────────────
+
+// ─── Sleep Timer Bottom Sheet ─────────────────────────────────────────────────
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun SleepTimerBottomSheet(
+    isActive: Boolean,
+    onPick: (Int) -> Unit,
+    onPickEndOfTrack: () -> Unit,
+    onCancel: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = false)
+    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
+        Column(modifier = Modifier.padding(bottom = 24.dp)) {
+            Text(
+                text = "Sleep timer",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+            )
+            HorizontalDivider()
+
+            listOf(15, 30, 45, 60).forEach { minutes ->
+                SleepTimerOption("$minutes minutes") { onPick(minutes) }
+            }
+            SleepTimerOption("End of current track") { onPickEndOfTrack() }
+
+            if (isActive) {
+                HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+                SleepTimerOption("Turn off timer", tint = true) { onCancel() }
+            }
+        }
+    }
+}
+
+@Composable
+private fun SleepTimerOption(
+    label: String,
+    tint: Boolean = false,
+    onClick: () -> Unit,
+) {
+    Text(
+        text = label,
+        style = MaterialTheme.typography.bodyLarge,
+        color = if (tint) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface,
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(horizontal = 16.dp, vertical = 14.dp),
+    )
 }
 
 // ─── Queue Bottom Sheet ───────────────────────────────────────────────────────

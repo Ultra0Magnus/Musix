@@ -31,12 +31,18 @@ room                 = "2.6.1"
 # Palette (extraction couleur dominante artwork)
 palette              = "1.0.0"
 
+# Reorderable (drag & drop in LazyColumn)
+reorderable          = "2.4.0"
+
 # DI Koin
 koin                 = "4.0.0"
 
 # Kotlinx
 coroutines           = "1.9.0"
 serialization        = "1.7.3"
+
+# Testing
+junit                = "4.13.2"
 
 [libraries]
 # Core
@@ -79,6 +85,9 @@ room-compiler                = { module = "androidx.room:room-compiler", version
 # Palette
 androidx-palette             = { module = "androidx.palette:palette-ktx", version.ref = "palette" }
 
+# Reorderable
+reorderable                  = { module = "sh.calvin.reorderable:reorderable", version.ref = "reorderable" }
+
 # Koin
 koin-android                 = { module = "io.insert-koin:koin-android", version.ref = "koin" }
 koin-androidx-compose        = { module = "io.insert-koin:koin-androidx-compose", version.ref = "koin" }
@@ -86,6 +95,9 @@ koin-androidx-compose        = { module = "io.insert-koin:koin-androidx-compose"
 # Kotlinx
 kotlinx-coroutines-android   = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-android", version.ref = "coroutines" }
 kotlinx-serialization-json   = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "serialization" }
+
+# Testing
+junit                        = { module = "junit:junit", version.ref = "junit" }
 
 [plugins]
 android-application          = { id = "com.android.application", version.ref = "agp" }

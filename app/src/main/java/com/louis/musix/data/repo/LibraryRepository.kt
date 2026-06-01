@@ -116,4 +116,11 @@ class LibraryRepository(
 
     suspend fun removeSongFromPlaylist(playlistId: Long, songId: String) =
         playlistDao.removeSong(playlistId, songId)
+
+    /** Persists a new song order for [playlistId] by updating each song's position. */
+    suspend fun reorderSongs(playlistId: Long, songs: List<Song>) {
+        songs.forEachIndexed { index, song ->
+            playlistDao.updatePosition(playlistId, song.id, index)
+        }
+    }
 }

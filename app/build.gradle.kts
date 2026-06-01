@@ -1,3 +1,6 @@
+import java.util.Properties
+import java.io.FileInputStream
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
@@ -5,6 +8,17 @@ plugins {
     alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.ksp)
 }
+
+// ── Release signing ────────────────────────────────────────────────────────────
+// Secrets live in keystore.properties at the repo root (git-ignored, never committed).
+// If the file is absent (CI, fresh clone), the release build falls back to the debug
+// key so the project always builds — only the maintainer's machine produces a
+// properly-signed v1.0 APK. See keystore.properties.template for the format.
+val keystorePropsFile = rootProject.file("keystore.properties")
+val keystoreProps = Properties().apply {
+    if (keystorePropsFile.exists()) load(FileInputStream(keystorePropsFile))
+}
+val hasReleaseKeystore = keystorePropsFile.exists()
 
 android {
     namespace = "com.louis.musix"
@@ -14,10 +28,21 @@ android {
         applicationId = "com.louis.musix"
         minSdk = 26
         targetSdk = 35
-        versionCode = 5
-        versionName = "0.9.2"
+        versionCode = 10
+        versionName = "1.0.0"
 
         vectorDrawables { useSupportLibrary = true }
+    }
+
+    signingConfigs {
+        if (hasReleaseKeystore) {
+            create("release") {
+                storeFile     = rootProject.file(keystoreProps["storeFile"] as String)
+                storePassword = keystoreProps["storePassword"] as String
+                keyAlias      = keystoreProps["keyAlias"] as String
+                keyPassword   = keystoreProps["keyPassword"] as String
+            }
+        }
     }
 
     buildTypes {
@@ -25,10 +50,14 @@ android {
             isMinifyEnabled = false
         }
         release {
-            // NewPipeExtractor utilise de la réflexion : minification désactivée pour le sideload v1
+            // NewPipeExtractor relies on reflection: minification disabled for the sideload build
             isMinifyEnabled = false
             isShrinkResources = false
-            signingConfig = signingConfigs.getByName("debug")
+            // Use the real release key when keystore.properties is present, else fall back to debug
+            signingConfig = if (hasReleaseKeystore)
+                signingConfigs.getByName("release")
+            else
+                signingConfigs.getByName("debug")
         }
     }
 
@@ -38,7 +67,7 @@ android {
     }
     kotlinOptions { jvmTarget = "17" }
 
-    buildFeatures { compose = true }
+    buildFeatures { compose = true; buildConfig = true }
 
     packaging {
         resources {
@@ -86,6 +115,9 @@ dependencies {
     implementation(libs.room.ktx)
     ksp(libs.room.compiler)
 
+    // Reorderable (drag & drop)
+    implementation(libs.reorderable)
+
     // Koin (DI)
     implementation(libs.koin.android)
     implementation(libs.koin.androidx.compose)
@@ -93,4 +125,7 @@ dependencies {
     // Kotlinx
     implementation(libs.kotlinx.coroutines.android)
     implementation(libs.kotlinx.serialization.json)
+
+    // Testing
+    testImplementation(libs.junit)
 }

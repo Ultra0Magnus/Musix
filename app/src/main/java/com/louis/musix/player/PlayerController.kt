@@ -52,6 +52,10 @@ data class PlayerControllerState(
     val queueSize: Int = 0,
     val shuffleEnabled: Boolean = false,
     val repeatMode: RepeatMode = RepeatMode.OFF,
+    /** Epoch millis when the sleep timer fires, or null if no timed sleep timer is set. */
+    val sleepTimerEndMs: Long? = null,
+    /** When true, playback pauses at the end of the current track. */
+    val sleepTimerEndOfTrack: Boolean = false,
 )
 
 // ─── Controller ─────────────────────────────────────────────────────────────────
@@ -85,6 +89,10 @@ class PlayerController(
     private var queueIdx       = 0
     private var _shuffleEnabled = false
     private var _repeatMode     = RepeatMode.OFF
+
+    // ─── Sleep timer ────────────────────────────────────────────────────────────
+    private var sleepTimerJob: Job? = null
+    private var pauseAtEndOfTrack = false
 
     // ─── Media3 listener ─────────────────────────────────────────────────────
 
@@ -127,6 +135,13 @@ class PlayerController(
     // ─── Track ended ─────────────────────────────────────────────────────────
 
     private fun onTrackEnded() {
+        // Sleep timer "end of track" → pause instead of advancing
+        if (pauseAtEndOfTrack) {
+            Log.d(TAG, "Sleep timer (end of track) → pausing")
+            controller?.pause()
+            clearSleepTimerState()
+            return
+        }
         when (_repeatMode) {
             RepeatMode.ONE -> {
                 // Replay current track
@@ -354,6 +369,44 @@ class PlayerController(
         }
         pushQueueState()
         Log.d(TAG, "Repeat: $_repeatMode")
+    }
+
+    // ─── Sleep timer ───────────────────────────────────────────────────────────
+
+    /** Schedules a pause after [minutes] minutes. Replaces any existing timer. */
+    fun setSleepTimer(minutes: Int) {
+        sleepTimerJob?.cancel()
+        pauseAtEndOfTrack = false
+        val endMs = System.currentTimeMillis() + minutes * 60_000L
+        _state.update { it.copy(sleepTimerEndMs = endMs, sleepTimerEndOfTrack = false) }
+        sleepTimerJob = scope.launch {
+            delay(minutes * 60_000L)
+            Log.d(TAG, "Sleep timer fired → pausing")
+            controller?.pause()
+            clearSleepTimerState()
+        }
+        Log.d(TAG, "Sleep timer set: ${minutes} min")
+    }
+
+    /** Pauses playback when the current track ends. Replaces any existing timer. */
+    fun setSleepTimerEndOfTrack() {
+        sleepTimerJob?.cancel()
+        sleepTimerJob = null
+        pauseAtEndOfTrack = true
+        _state.update { it.copy(sleepTimerEndMs = null, sleepTimerEndOfTrack = true) }
+        Log.d(TAG, "Sleep timer set: end of track")
+    }
+
+    fun cancelSleepTimer() {
+        sleepTimerJob?.cancel()
+        sleepTimerJob = null
+        clearSleepTimerState()
+        Log.d(TAG, "Sleep timer cancelled")
+    }
+
+    private fun clearSleepTimerState() {
+        pauseAtEndOfTrack = false
+        _state.update { it.copy(sleepTimerEndMs = null, sleepTimerEndOfTrack = false) }
     }
 
     // ─── Auto-advance ─────────────────────────────────────────────────────────

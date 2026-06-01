@@ -1,18 +1,23 @@
 package com.louis.musix.ui.screens.playlist
 
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.ArrowBackIosNew
 import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.material.icons.outlined.DragHandle
 import androidx.compose.material.icons.outlined.PlayArrow
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -30,12 +35,15 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.louis.musix.domain.model.Song
 import com.louis.musix.ui.components.SongRow
 import org.koin.androidx.compose.koinViewModel
 import org.koin.core.parameter.parametersOf
+import sh.calvin.reorderable.ReorderableItem
+import sh.calvin.reorderable.rememberReorderableLazyListState
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -79,9 +87,9 @@ fun PlaylistDetailScreen(
                     )
                 }
             } else {
-                // "Play all" button
+                // "Play all" button — outside the LazyColumn so indices stay 0-based
                 Button(
-                    onClick = { if (state.songs.isNotEmpty()) onSongClick(state.songs, 0) },
+                    onClick = { onSongClick(state.songs, 0) },
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 16.dp, vertical = 8.dp),
@@ -91,47 +99,83 @@ fun PlaylistDetailScreen(
                     Text("Play all (${state.songs.size} song${if (state.songs.size > 1) "s" else ""})")
                 }
 
-                LazyColumn(modifier = Modifier.fillMaxSize()) {
+                // ── Reorderable list ──────────────────────────────────────────
+                val lazyListState = rememberLazyListState()
+                val reorderableState = rememberReorderableLazyListState(lazyListState) { from, to ->
+                    viewModel.moveSong(from.index, to.index)
+                }
+
+                LazyColumn(
+                    state = lazyListState,
+                    modifier = Modifier.fillMaxSize(),
+                ) {
                     itemsIndexed(
                         items = state.songs,
-                        key   = { index, song -> "${index}_${song.id}" },
+                        key   = { _, song -> song.id },
                     ) { index, song ->
-                        // ── Safe swipe-to-dismiss ─────────────────────────────
-                        // We do NOT use confirmValueChange with a side-effect
-                        // (risk of deletion on recompose).
-                        // The action is confirmed via LaunchedEffect on currentValue.
-                        val dismissState = rememberSwipeToDismissBoxState(
-                            positionalThreshold = { totalDistance -> totalDistance * 0.5f },
-                        )
-                        LaunchedEffect(dismissState.currentValue) {
-                            if (dismissState.currentValue == SwipeToDismissBoxValue.EndToStart) {
-                                viewModel.removeSong(song.id)
+
+                        ReorderableItem(reorderableState, key = song.id) { isDragging ->
+                            val elevation by animateDpAsState(
+                                targetValue = if (isDragging) 8.dp else 0.dp,
+                                label = "drag_shadow",
+                            )
+
+                            // Swipe-to-delete (horizontal) + drag handle (vertical) coexist
+                            val dismissState = rememberSwipeToDismissBoxState(
+                                positionalThreshold = { it * 0.5f },
+                            )
+                            LaunchedEffect(dismissState.currentValue) {
+                                if (dismissState.currentValue == SwipeToDismissBoxValue.EndToStart) {
+                                    viewModel.removeSong(song.id)
+                                }
+                            }
+
+                            SwipeToDismissBox(
+                                state = dismissState,
+                                modifier = Modifier.shadow(elevation),
+                                backgroundContent = {
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxSize()
+                                            .padding(horizontal = 20.dp),
+                                        contentAlignment = Alignment.CenterEnd,
+                                    ) {
+                                        Icon(
+                                            Icons.Outlined.Delete,
+                                            contentDescription = "Delete",
+                                            tint = MaterialTheme.colorScheme.error,
+                                        )
+                                    }
+                                },
+                                enableDismissFromStartToEnd = false,
+                            ) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(end = 4.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                ) {
+                                    SongRow(
+                                        song    = song,
+                                        onClick = { onSongClick(state.songs, index) },
+                                        modifier = Modifier.weight(1f),
+                                    )
+                                    // Drag handle — vertical reorder only
+                                    Icon(
+                                        imageVector        = Icons.Outlined.DragHandle,
+                                        contentDescription = "Drag to reorder",
+                                        tint               = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        modifier           = Modifier
+                                            .size(24.dp)
+                                            .draggableHandle(),
+                                    )
+                                }
                             }
                         }
 
-                        SwipeToDismissBox(
-                            state = dismissState,
-                            backgroundContent = {
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxSize()
-                                        .padding(horizontal = 20.dp),
-                                    contentAlignment = Alignment.CenterEnd,
-                                ) {
-                                    Icon(Icons.Outlined.Delete, contentDescription = null,
-                                        tint = MaterialTheme.colorScheme.error)
-                                }
-                            },
-                            enableDismissFromStartToEnd = false,
-                        ) {
-                            SongRow(
-                                song    = song,
-                                onClick = { onSongClick(state.songs, index) },
-                            )
-                        }
                         HorizontalDivider(
                             modifier = Modifier.padding(horizontal = 16.dp),
-                            color = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f),
+                            color    = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f),
                         )
                     }
                     item { Spacer(Modifier.height(8.dp)) }

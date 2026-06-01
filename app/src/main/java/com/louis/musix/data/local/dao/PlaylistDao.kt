@@ -69,4 +69,8 @@ interface PlaylistDao {
     /** Find a playlist by its name (for the Spotify Top 50). */
     @Query("SELECT id FROM playlists WHERE name = :name LIMIT 1")
     suspend fun getPlaylistIdByName(name: String): Long?
+
+    /** Updates the position of a single song in a playlist (used for reordering). */
+    @Query("UPDATE playlist_songs SET position = :position WHERE playlistId = :playlistId AND songId = :songId")
+    suspend fun updatePosition(playlistId: Long, songId: String, position: Int)
 }

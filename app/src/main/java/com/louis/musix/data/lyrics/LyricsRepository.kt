@@ -103,8 +103,9 @@ class LyricsRepository {
      * [02:34.56] Line text
      * ```
      * Timestamp fields may have 2 or 3 digits for centiseconds/milliseconds.
+     * `internal` for unit testing.
      */
-    private fun parseLrc(lrc: String): List<LyricLine> {
+    internal fun parseLrc(lrc: String): List<LyricLine> {
         val regex = Regex("""^\[(\d{2}):(\d{2})\.(\d{2,3})\]\s?(.*)$""")
         return lrc.lines()
             .mapNotNull { line ->

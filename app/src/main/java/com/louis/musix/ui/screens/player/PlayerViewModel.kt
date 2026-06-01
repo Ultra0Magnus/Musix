@@ -47,6 +47,9 @@ data class PlayerUiState(
     // Playback modes
     val shuffleEnabled: Boolean = false,
     val repeatMode: RepeatMode = RepeatMode.OFF,
+    // Sleep timer
+    val sleepTimerEndMs: Long? = null,
+    val sleepTimerEndOfTrack: Boolean = false,
     // Lyrics
     val lyricsState: LyricsUiState = LyricsUiState.Idle,
 )
@@ -95,6 +98,8 @@ class PlayerViewModel(
                         currentQueueIndex = s.currentQueueIndex,
                         shuffleEnabled    = s.shuffleEnabled,
                         repeatMode        = s.repeatMode,
+                        sleepTimerEndMs      = s.sleepTimerEndMs,
+                        sleepTimerEndOfTrack = s.sleepTimerEndOfTrack,
                         song              = songToDisplay,
                     )
                 }
@@ -228,6 +233,11 @@ class PlayerViewModel(
     // Shuffle / Repeat
     fun toggleShuffle()   = playerController.toggleShuffle()
     fun cycleRepeatMode() = playerController.cycleRepeatMode()
+
+    // Sleep timer
+    fun setSleepTimer(minutes: Int)   = playerController.setSleepTimer(minutes)
+    fun setSleepTimerEndOfTrack()     = playerController.setSleepTimerEndOfTrack()
+    fun cancelSleepTimer()            = playerController.cancelSleepTimer()
 
     // Favorites
     fun toggleFavorite() {

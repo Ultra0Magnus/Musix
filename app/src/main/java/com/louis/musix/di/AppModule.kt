@@ -65,7 +65,7 @@ val appModule = module {
     viewModel { SpotifyImportViewModel(get(), get(), get(), get()) }
     viewModel { ArtistViewModel(get()) }
     viewModel { AlbumDetailViewModel(get()) }
-    viewModel { SettingsViewModel(get()) }
+    viewModel { SettingsViewModel(get(), get()) }
     // PlaylistDetailViewModel takes the id as a parameter (koinViewModel { parametersOf(id) })
     viewModel { params -> PlaylistDetailViewModel(params.get(), get()) }
 }

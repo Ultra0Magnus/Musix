@@ -1,6 +1,8 @@
 package com.louis.musix.player
 
 import android.content.Intent
+import androidx.media3.common.AudioAttributes
+import androidx.media3.common.C
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
@@ -43,9 +45,19 @@ class MusixPlayerService : MediaSessionService() {
             this, 0, launchIntent, PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
         )
 
+        // Audio attributes — enables system audio focus handling:
+        // playback pauses when a call comes in or another app starts playing,
+        // and ducks/resumes appropriately.
+        val audioAttributes = AudioAttributes.Builder()
+            .setUsage(C.USAGE_MEDIA)
+            .setContentType(C.AUDIO_CONTENT_TYPE_MUSIC)
+            .build()
+
         // Set up ExoPlayer with our custom CacheDataSource
         val player = ExoPlayer.Builder(this)
             .setMediaSourceFactory(DefaultMediaSourceFactory(cacheManager.cacheDataSourceFactory))
+            .setAudioAttributes(audioAttributes, /* handleAudioFocus = */ true)
+            .setHandleAudioBecomingNoisy(true)
             .build().also {
                 it.repeatMode = Player.REPEAT_MODE_OFF
             }

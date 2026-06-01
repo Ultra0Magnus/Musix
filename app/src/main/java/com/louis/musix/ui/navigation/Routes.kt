@@ -34,6 +34,9 @@ sealed class Routes(val route: String) {
     }
 
     data object Settings : Routes("settings")
+
+    // Phase 1.0 — open-source licenses
+    data object Licenses : Routes("licenses")
 }
 
 data class BottomNavItem(

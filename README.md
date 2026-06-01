@@ -2,7 +2,7 @@
 
 Personal Android music streaming app powered by YouTube (NewPipeExtractor). Distributed as a sideloaded APK — no Play Store.
 
-**Current version: v0.9.2** — Stream caching (ExoPlayer) / Offline mode / Top 50 Suggestions / Settings
+**Current version: v1.0.0** — Sleep timer / Playlist rename & reorder / Library search / Real audio focus / Signed release
 
 ---
 
@@ -37,7 +37,8 @@ Personal Android music streaming app powered by YouTube (NewPipeExtractor). Dist
 ### Library (Room / SQLite)
 - **Favorites**: add/remove from any screen
 - **Listening history**: with duplicate filtering
-- **Playlists**: create, rename, delete, add/remove tracks
+- **Playlists**: create, rename, delete, add/remove tracks, **drag-to-reorder**
+- **Search**: filter favorites and history by title or artist
 - **Downloads**: full offline support with swipe-to-delete
 
 ### Home
@@ -52,9 +53,11 @@ Personal Android music streaming app powered by YouTube (NewPipeExtractor). Dist
 
 ### Player Screen
 - **Color gradient** extracted from the artwork via Palette (animated transition)
+- **Sleep timer**: 15/30/45/60 min or end-of-track, with a live countdown
 - Tap the artist name → Artist page
 - "Queue" bottom sheet: view and remove tracks
 - "Lyrics" bottom sheet: synced or plain-text lyrics
+- Real system **audio focus**: pauses when a call or another app takes over
 
 ---
 
@@ -83,6 +86,22 @@ Personal Android music streaming app powered by YouTube (NewPipeExtractor). Dist
 - **Gradle sync fails**: *File* → *Invalidate Caches* → *Invalidate and Restart*
 - **NewPipeExtractor not found**: check `maven { url = uri("https://jitpack.io") }` in `settings.gradle.kts`
 - **Device not detected**: enable *USB debugging* in Developer Options; try a different cable if needed
+
+### Signed release build
+The release build is signed with a dedicated keystore. Secrets live in `keystore.properties`
+(git-ignored). To set it up once:
+
+1. Copy `keystore.properties.template` → `keystore.properties`.
+2. Generate the keystore from the repo root:
+   ```
+   keytool -genkeypair -v -keystore musix-release.jks \
+     -keyalg RSA -keysize 2048 -validity 10000 -alias musix
+   ```
+3. Fill in the passwords in `keystore.properties`.
+4. Build: *Build* → *Generate Signed Bundle / APK*, or assemble the `release` variant.
+
+If `keystore.properties` is absent, the release build falls back to the debug key so the
+project still compiles on a fresh clone.
 
 ---
 
@@ -140,11 +159,14 @@ com.louis.musix
 - ✅ **Phase 10** — Paginated search ("Load more"), Search history, clear button
 - ✅ **Phase 12** — Offline Mode (v0.9.1): Download tracks, Local playback, Storage management
 - ✅ **Phase 13** — Data Saving (v0.9.2): ExoPlayer SimpleCache integration, Auto-eviction (300 MB max)
-- 🔄 **Phase 14** — Robustness: Network monitoring, Auto-skip on stream error
-- 🔄 **Phase 15** — Android Auto support
-- 🔄 **Phase 16** — Sleep Timer & Equalizer
-- 🔄 **Phase 17** — Polish: Material You dynamic colors, UI transitions
+- ✅ **Phase 14** — Robustness: Network monitoring, Auto-skip on stream error
+- ✅ **Phase 15 (v1.0.0)** — Sleep timer, Playlist rename & drag-to-reorder, Library search, real system audio focus, cleaned-up Settings, signed release build, unit tests
 - 🚀 **v1.0.0** — Official Release
+
+### Post-1.0 ideas
+- 🔄 Android Auto support
+- 🔄 Equalizer
+- 🔄 Material You dynamic colors & shared-element transitions
 
 ---
 

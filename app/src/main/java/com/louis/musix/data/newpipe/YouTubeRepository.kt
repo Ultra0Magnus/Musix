@@ -233,14 +233,16 @@ class YouTubeRepository {
     /**
      * Converts music.youtube.com → www.youtube.com.
      * NewPipeExtractor's YouTube service only handles streams on youtube.com.
+     * `internal` for unit testing.
      */
-    private fun normalizeYouTubeUrl(url: String): String {
+    internal fun normalizeYouTubeUrl(url: String): String {
         if (!url.contains("music.youtube.com")) return url
         val videoId = extractVideoId(url) ?: return url
         return "https://www.youtube.com/watch?v=$videoId"
     }
 
-    private fun extractVideoId(url: String): String? {
+    /** `internal` for unit testing. */
+    internal fun extractVideoId(url: String): String? {
         Regex("""[?&]v=([^&\s]+)""").find(url)?.groupValues?.get(1)?.let { return it }
         Regex("""youtu\.be/([^?&\s]+)""").find(url)?.groupValues?.get(1)?.let { return it }
         Regex("""youtube\.com/shorts/([^?&\s]+)""").find(url)?.groupValues?.get(1)?.let { return it }

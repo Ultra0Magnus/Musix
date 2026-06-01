@@ -15,6 +15,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.louis.musix.BuildConfig
 import org.koin.androidx.compose.koinViewModel
 import java.util.Locale
 
@@ -22,13 +23,17 @@ import java.util.Locale
 @Composable
 fun SettingsScreen(
     onBack: () -> Unit,
+    onSpotifyClick: () -> Unit = {},
+    onLicensesClick: () -> Unit = {},
 ) {
     val viewModel: SettingsViewModel = koinViewModel()
     val cacheSizeMb by viewModel.cacheSizeMb.collectAsStateWithLifecycle()
-    
-    // Refresh cache size when screen becomes visible
+    val spotifyConnected by viewModel.spotifyConnected.collectAsStateWithLifecycle()
+
+    // Refresh cache size + Spotify status when the screen becomes visible
     androidx.compose.runtime.LaunchedEffect(Unit) {
         viewModel.updateCacheSize()
+        viewModel.refreshSpotifyStatus()
     }
 
     Scaffold(
@@ -48,26 +53,6 @@ fun SettingsScreen(
                 .fillMaxSize()
                 .padding(padding)
         ) {
-            item { SettingsHeader("Playback") }
-            item {
-                SettingsToggleItem(
-                    title = "External Audio Focus",
-                    subtitle = "Pause playback when another app starts playing audio",
-                    icon = Icons.Default.Audiotrack,
-                    checked = true,
-                    onCheckedChange = {}
-                )
-            }
-            item {
-                SettingsClickItem(
-                    title = "Audio Quality",
-                    subtitle = "High (YouTube 128kbps AAC)",
-                    icon = Icons.Default.HighQuality,
-                    onClick = {}
-                )
-            }
-
-            item { HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp)) }
             item { SettingsHeader("Cache & Storage") }
             item {
                 SettingsClickItem(
@@ -83,9 +68,10 @@ fun SettingsScreen(
             item {
                 SettingsClickItem(
                     title = "Spotify Connection",
-                    subtitle = "Connected as Louis",
-                    icon = Icons.Default.Link,
-                    onClick = {}
+                    subtitle = if (spotifyConnected) "Connected — tap to manage import"
+                               else "Not connected — tap to import",
+                    icon = if (spotifyConnected) Icons.Default.Link else Icons.Default.LinkOff,
+                    onClick = onSpotifyClick
                 )
             }
 
@@ -94,7 +80,7 @@ fun SettingsScreen(
             item {
                 SettingsClickItem(
                     title = "Version",
-                    subtitle = "0.6.2 (Stable)",
+                    subtitle = BuildConfig.VERSION_NAME,
                     icon = Icons.Default.Info,
                     onClick = {}
                 )
@@ -104,10 +90,10 @@ fun SettingsScreen(
                     title = "Open Source Licenses",
                     subtitle = "Libraries used in Musix",
                     icon = Icons.Default.HistoryEdu,
-                    onClick = {}
+                    onClick = onLicensesClick
                 )
             }
-            
+
             item { Spacer(modifier = Modifier.height(32.dp)) }
         }
     }
@@ -120,25 +106,6 @@ private fun SettingsHeader(title: String) {
         style = MaterialTheme.typography.labelLarge,
         color = MaterialTheme.colorScheme.primary,
         modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
-    )
-}
-
-@Composable
-private fun SettingsToggleItem(
-    title: String,
-    subtitle: String,
-    icon: ImageVector,
-    checked: Boolean,
-    onCheckedChange: (Boolean) -> Unit
-) {
-    ListItem(
-        headlineContent = { Text(title) },
-        supportingContent = { Text(subtitle) },
-        leadingContent = { Icon(icon, contentDescription = null) },
-        trailingContent = {
-            Switch(checked = checked, onCheckedChange = onCheckedChange)
-        },
-        modifier = Modifier.clickable { onCheckedChange(!checked) }
     )
 }
 
