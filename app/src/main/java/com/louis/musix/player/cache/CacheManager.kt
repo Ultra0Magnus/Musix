@@ -52,13 +52,16 @@ class CacheManager(context: Context) {
         )
 
     /**
-     * Clears all cached media files and resets the cache database.
+     * Clears all cached media content.
+     *
+     * Removes every cached resource one by one instead of releasing the
+     * [SimpleCache]: the instance stays valid, so [cacheDataSourceFactory]
+     * (already bound to it by the player service) keeps working afterwards.
      */
     fun clearCache() {
-        simpleCache.release()
-        cacheDir.deleteRecursively()
-        // Recreate fresh instance
-        simpleCache // Will auto-reinitialize on next access via lazy binding
+        simpleCache.keys.toList().forEach { key ->
+            simpleCache.removeResource(key)
+        }
     }
 
     /**

@@ -76,6 +76,11 @@ android {
     }
 }
 
+// Room: export du schéma versionné (app/schemas/) pour pouvoir écrire et tester les migrations
+ksp {
+    arg("room.schemaLocation", "$projectDir/schemas")
+}
+
 dependencies {
     // Compose (BOM aligne toutes les versions Compose)
     implementation(platform(libs.compose.bom))

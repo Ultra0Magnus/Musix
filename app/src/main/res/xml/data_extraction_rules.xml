@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Backup rules (API 31+): keep the Spotify OAuth tokens (spotify_prefs) out of
+     both cloud backups and device-to-device transfers. The Room DB (favorites,
+     playlists, history) stays included. -->
+<data-extraction-rules>
+    <cloud-backup>
+        <exclude domain="sharedpref" path="spotify_prefs.xml" />
+    </cloud-backup>
+    <device-transfer>
+        <exclude domain="sharedpref" path="spotify_prefs.xml" />
+    </device-transfer>
+</data-extraction-rules>
