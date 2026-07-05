@@ -32,6 +32,17 @@ android {
         versionName = "1.0.0"
 
         vectorDrawables { useSupportLibrary = true }
+
+        // CLIENT_ID Spotify injecté depuis local.properties (ne pas committer la valeur réelle)
+        // Ajouter dans local.properties : spotify.client.id=50fa02008df5469fbdeb8407ec15ff80
+        buildConfigField("String", "SPOTIFY_CLIENT_ID",
+            (project.findProperty("spotify.client.id") as String? ?: "").let { '"' + it + '"' }
+        )
+    }
+
+    buildFeatures {
+        compose = true
+        buildConfig = true
     }
 
     signingConfigs {
@@ -66,8 +77,6 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
     kotlinOptions { jvmTarget = "17" }
-
-    buildFeatures { compose = true; buildConfig = true }
 
     packaging {
         resources {

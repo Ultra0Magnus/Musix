@@ -5,6 +5,7 @@ import android.content.Intent
 import android.net.Uri
 import android.util.Base64
 import android.util.Log
+import com.louis.musix.BuildConfig
 import com.louis.musix.data.spotify.model.SpotifyTokenResponse
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -20,7 +21,8 @@ import java.security.SecureRandom
 
 private const val TAG = "Musix.SpotifyAuth"
 
-private const val CLIENT_ID    = "50fa02008df5469fbdeb8407ec15ff80"
+// CLIENT_ID lu depuis BuildConfig → défini dans local.properties (ne jamais committer la valeur)
+private val CLIENT_ID get() = BuildConfig.SPOTIFY_CLIENT_ID
 private const val REDIRECT_URI = "musix://callback"
 private const val SCOPES       =
     "user-library-read playlist-read-private playlist-read-collaborative"
@@ -37,12 +39,16 @@ private const val KEY_EXPIRES = "expires_at"
  *  - Échange le code contre des tokens (via OkHttp)
  *  - Stocke les tokens dans SharedPreferences
  *  - Rafraîchit le token automatiquement
+ *
+ * [httpClient] est injecté via Koin (singleton partagé avec le reste de l'app).
  */
-class SpotifyAuthManager(private val context: Context) {
+class SpotifyAuthManager(
+    private val context: Context,
+    private val httpClient: OkHttpClient,
+) {
 
-    private val prefs      = context.getSharedPreferences(PREF_FILE, Context.MODE_PRIVATE)
-    private val json       = Json { ignoreUnknownKeys = true }
-    private val httpClient = OkHttpClient()
+    private val prefs = context.getSharedPreferences(PREF_FILE, Context.MODE_PRIVATE)
+    private val json  = Json { ignoreUnknownKeys = true }
 
     /** code_verifier PKCE conservé jusqu'à l'échange de code. */
     private var pendingVerifier: String? = null

@@ -159,13 +159,22 @@ class PlayerViewModel(
                 libraryRepo.logHistory(song)
                 _uiState.update { it.copy(isLoadingAudio = false) }
 
-                // Build queue in background (similar tracks by artist)
+                // Build queue in background: prefer the current album's tracklist,
+                // fall back to similar tracks by the same artist if none is found.
                 launch {
                     try {
-                        val related = repository.search(song.artist)
-                            .filter { it.id != song.id }
-                            .take(20)
-                        playerController.setQueue(listOf(song) + related, startIndex = 0)
+                        val albums = repository.searchAlbums(song.artist)
+                        val queueSongs = albums.firstOrNull()
+                            ?.let { repository.getAlbumTracks(it.playlistUrl) }
+                            ?.takeIf { it.isNotEmpty() }
+                            ?: fallbackQueue(song)
+                        val startIdx = queueSongs.indexOfFirst { it.id == song.id }.takeIf { it >= 0 } ?: 0
+                        val finalQueue = if (startIdx == 0) {
+                            listOf(song) + queueSongs.filter { it.id != song.id }
+                        } else {
+                            queueSongs
+                        }
+                        playerController.setQueue(finalQueue, startIndex = startIdx)
                     } catch (_: Exception) {}
                 }
 
@@ -184,6 +193,10 @@ class PlayerViewModel(
             }
         }
     }
+
+    /** Fallback when the artist has no album on YouTube Music: generic search by artist name. */
+    private suspend fun fallbackQueue(song: Song): List<Song> =
+        repository.search(song.artist).filter { it.id != song.id }.take(20)
 
     /**
      * Plays [songs[startIndex]] and loads the full list as the queue.

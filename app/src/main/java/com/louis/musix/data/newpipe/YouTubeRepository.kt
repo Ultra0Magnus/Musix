@@ -3,6 +3,7 @@ package com.louis.musix.data.newpipe
 import android.util.Log
 import com.louis.musix.domain.model.ArtistAlbum
 import com.louis.musix.domain.model.Song
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.schabi.newpipe.extractor.MediaFormat
@@ -14,8 +15,10 @@ import org.schabi.newpipe.extractor.search.SearchInfo
 import org.schabi.newpipe.extractor.stream.StreamInfo
 import org.schabi.newpipe.extractor.stream.StreamInfoItem
 
-private const val TAG          = "Musix.YouTube"
-private const val CACHE_TTL_MS = 5 * 60 * 60 * 1000L  // 5 hours (YouTube URLs expire in ~6h)
+private const val TAG               = "Musix.YouTube"
+private const val CACHE_TTL_MS      = 5 * 60 * 60 * 1000L  // 5 hours (YouTube URLs expire in ~6h)
+private const val ALBUM_CACHE_TTL_MS = 10 * 60 * 1000L      // 10 minutes (avoids re-fetching on nav back-and-forth)
+private const val MAX_RETRIES       = 2
 
 class YouTubeRepository {
 
@@ -25,6 +28,12 @@ class YouTubeRepository {
 
     private data class CachedUrl(val url: String, val expiresAt: Long)
     private val urlCache = mutableMapOf<String, CachedUrl>()
+
+    // ─── In-memory albums/tracks cache (TTL 10 min) ───────────────────────────
+
+    private data class CacheEntry<T>(val value: T, val timestamp: Long = System.currentTimeMillis())
+    private val albumsCache = mutableMapOf<String, CacheEntry<List<ArtistAlbum>>>()
+    private val tracksCache = mutableMapOf<String, CacheEntry<List<Song>>>()
 
     // ─── Search ────────────────────────────────────────────────────────────────
 
@@ -83,36 +92,54 @@ class YouTubeRepository {
     /**
      * Searches for an artist's albums on YouTube Music.
      * Uses the "music_albums" filter → returns [PlaylistInfoItem] results.
+     * Cached in memory for [ALBUM_CACHE_TTL_MS] to avoid refetching on quick nav back-and-forth.
      */
     suspend fun searchAlbums(artistName: String): List<ArtistAlbum> =
         withContext(Dispatchers.IO) {
-            try {
-                val handler = youtube.searchQHFactory
-                    .fromQuery(artistName, listOf("music_albums"), "")
-                val info = SearchInfo.getInfo(youtube, handler)
-                info.relatedItems
-                    .filterIsInstance<PlaylistInfoItem>()
-                    .take(12)
-                    .mapNotNull { it.toAlbum() }
-                    .also { Log.d(TAG, "${it.size} albums for \"$artistName\"") }
-            } catch (e: Exception) {
-                Log.w(TAG, "searchAlbums(\"$artistName\") failed: ${e.message}")
-                emptyList()
-            }
+            albumsCache[artistName]
+                ?.takeIf { System.currentTimeMillis() - it.timestamp < ALBUM_CACHE_TTL_MS }
+                ?.value
+                ?.also { Log.d(TAG, "searchAlbums cache hit: $artistName") }
+                ?: try {
+                    val handler = youtube.searchQHFactory
+                        .fromQuery(artistName, listOf("music_albums"), "")
+                    val info = SearchInfo.getInfo(youtube, handler)
+                    info.relatedItems
+                        .filterIsInstance<PlaylistInfoItem>()
+                        .take(12)
+                        .mapNotNull { it.toAlbum() }
+                        .also {
+                            Log.d(TAG, "${it.size} albums for \"$artistName\"")
+                            albumsCache[artistName] = CacheEntry(it)
+                        }
+                } catch (e: Exception) {
+                    Log.w(TAG, "searchAlbums(\"$artistName\") failed: ${e.message}")
+                    emptyList()
+                }
         }
 
     /**
      * Fetches the tracks of an album from its YouTube Music playlist URL.
      * Returns only the first page (≈ 25 tracks) — sufficient for a standard album.
+     * Cached in memory for [ALBUM_CACHE_TTL_MS].
      */
     suspend fun getAlbumTracks(playlistUrl: String): List<Song> =
         withContext(Dispatchers.IO) {
-            Log.d(TAG, "getAlbumTracks → $playlistUrl")
-            val info = PlaylistInfo.getInfo(youtube, playlistUrl)
-            info.relatedItems
-                .filterIsInstance<StreamInfoItem>()
-                .map { it.toSong() }
-                .also { Log.d(TAG, "${it.size} tracks in album") }
+            tracksCache[playlistUrl]
+                ?.takeIf { System.currentTimeMillis() - it.timestamp < ALBUM_CACHE_TTL_MS }
+                ?.value
+                ?.also { Log.d(TAG, "getAlbumTracks cache hit: $playlistUrl") }
+                ?: run {
+                    Log.d(TAG, "getAlbumTracks → $playlistUrl")
+                    val info = PlaylistInfo.getInfo(youtube, playlistUrl)
+                    info.relatedItems
+                        .filterIsInstance<StreamInfoItem>()
+                        .map { it.toSong() }
+                        .also {
+                            Log.d(TAG, "${it.size} tracks in album")
+                            tracksCache[playlistUrl] = CacheEntry(it)
+                        }
+                }
         }
 
     // ─── YouTube Trending (kiosk) ──────────────────────────────────────────────
@@ -146,6 +173,9 @@ class YouTubeRepository {
      * Returns the direct audio stream URL for a YouTube video.
      * URLs are cached in memory with a 5h TTL (YouTube URLs expire in ~6h).
      * On a quick replay within the same session, no additional network call is made.
+     *
+     * On a cache miss, retries the network fetch up to [MAX_RETRIES] times on
+     * transient errors (network timeout, temporary bot detection).
      */
     suspend fun getAudioStreamUrl(videoUrl: String): String = withContext(Dispatchers.IO) {
         val normalizedUrl = normalizeYouTubeUrl(videoUrl)
@@ -158,11 +188,22 @@ class YouTubeRepository {
             return@withContext cached.url
         }
 
-        // ── Fresh fetch ──────────────────────────────────────────────────────
-        val url = fetchFreshAudioUrl(normalizedUrl)
-        urlCache[videoId] = CachedUrl(url, System.currentTimeMillis() + CACHE_TTL_MS)
-        Log.d(TAG, "URL cached ($videoId, expires in 5h)")
-        url
+        // ── Fresh fetch, with retry on transient failures ──────────────────────
+        var lastException: Exception? = null
+        repeat(MAX_RETRIES + 1) { attempt ->
+            try {
+                val url = fetchFreshAudioUrl(normalizedUrl)
+                urlCache[videoId] = CachedUrl(url, System.currentTimeMillis() + CACHE_TTL_MS)
+                Log.d(TAG, "URL cached ($videoId, expires in 5h)")
+                return@withContext url
+            } catch (e: CancellationException) {
+                throw e  // never retry a coroutine cancellation
+            } catch (e: Exception) {
+                lastException = e
+                Log.w(TAG, "getAudioStreamUrl attempt ${attempt + 1}/${MAX_RETRIES + 1} failed: ${e.message}")
+            }
+        }
+        throw lastException ?: Exception("No stream available")
     }
 
     /**
