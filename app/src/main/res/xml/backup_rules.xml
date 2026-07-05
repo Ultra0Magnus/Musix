@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Auto Backup rules (API <= 30).
+     The Spotify OAuth tokens (access + refresh) live in spotify_prefs and must
+     never leave the device via cloud/adb backup. Everything else (Room DB with
+     favorites/playlists/history) stays backed up. -->
+<full-backup-content>
+    <exclude domain="sharedpref" path="spotify_prefs.xml" />
+</full-backup-content>
