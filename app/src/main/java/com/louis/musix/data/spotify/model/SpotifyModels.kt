@@ -103,3 +103,17 @@ data class SpotifyExportItemTrack(
     val trackName:  String = "",
     val artistName: String = "",
 )
+
+// ── Historique d'écoute étendu  Streaming_History_Audio_YYYY.json ─────────────
+
+@Serializable
+data class SpotifyStreamingEntry(
+    val ts:                                    String  = "",
+    @SerialName("master_metadata_track_name")
+    val trackName:                             String? = null,
+    @SerialName("master_metadata_album_artist_name")
+    val artistName:                            String? = null,
+    @SerialName("ms_played")
+    val msPlayed:                              Long    = 0L,
+    val skipped:                               Boolean? = null,
+)

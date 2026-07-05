@@ -9,7 +9,7 @@ import com.louis.musix.data.local.entity.PlaylistSongEntity
 import com.louis.musix.data.local.entity.SongEntity
 import kotlinx.coroutines.flow.Flow
 
-/** Playlist enrichie du nombre de morceaux (JOIN agrégé). */
+/** Playlist enriched with the song count (aggregated JOIN). */
 data class PlaylistWithCount(
     val id: Long,
     val name: String,
@@ -31,7 +31,7 @@ interface PlaylistDao {
     @Query("UPDATE playlists SET name = :name WHERE id = :playlistId")
     suspend fun renamePlaylist(playlistId: Long, name: String)
 
-    /** Toutes les playlists avec leur nombre de morceaux, triées par date de création. */
+    /** All playlists with their song count, sorted by creation date. */
     @Query("""
         SELECT p.id, p.name, p.createdAt, COUNT(ps.songId) AS songCount
         FROM playlists p
@@ -52,9 +52,9 @@ interface PlaylistDao {
     @Query("DELETE FROM playlist_songs WHERE playlistId = :playlistId AND songId = :songId")
     suspend fun removeSong(playlistId: Long, songId: String)
 
-    /** Morceaux d'une playlist triés par position. */
+    /** Songs from a playlist sorted by position. */
     @Query("""
-        SELECT s.id, s.title, s.artist, s.thumbnailUrl, s.durationSeconds, s.videoUrl
+        SELECT s.id, s.title, s.artist, s.thumbnailUrl, s.durationSeconds, s.videoUrl, s.isDownloaded, s.localFilePath
         FROM playlist_songs ps
         INNER JOIN songs s ON ps.songId = s.id
         WHERE ps.playlistId = :playlistId
@@ -62,7 +62,15 @@ interface PlaylistDao {
     """)
     fun getPlaylistSongs(playlistId: Long): Flow<List<SongEntity>>
 
-    /** Nombre de morceaux dans une playlist (pour calculer la prochaine position). */
+    /** Number of songs in a playlist (to calculate the next position). */
     @Query("SELECT COUNT(*) FROM playlist_songs WHERE playlistId = :playlistId")
     suspend fun getSongCount(playlistId: Long): Int
+
+    /** Find a playlist by its name (for the Spotify Top 50). */
+    @Query("SELECT id FROM playlists WHERE name = :name LIMIT 1")
+    suspend fun getPlaylistIdByName(name: String): Long?
+
+    /** Updates the position of a single song in a playlist (used for reordering). */
+    @Query("UPDATE playlist_songs SET position = :position WHERE playlistId = :playlistId AND songId = :songId")
+    suspend fun updatePosition(playlistId: Long, songId: String, position: Int)
 }

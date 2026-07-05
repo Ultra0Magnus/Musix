@@ -13,25 +13,30 @@ sealed class Routes(val route: String) {
     data object Library : Routes("library")
     data object Player  : Routes("player")
 
-    // Phase 5 — detail d'une playlist
+    // Phase 5 — playlist detail
     data object PlaylistDetail : Routes("playlist/{playlistId}") {
         fun createRoute(playlistId: Long) = "playlist/$playlistId"
     }
 
-    // Phase 7 — import Spotify
+    // Phase 7 — Spotify import
     data object SpotifyImport : Routes("spotify_import")
 
-    // Phase 8 — page artiste
-    // On passe le nom en query param (plus sûr que le path param pour les noms avec "/" ou espaces)
+    // Phase 8 — artist page
+    // Name passed as query param (safer than path param for names with "/" or spaces)
     data object Artist : Routes("artist?name={name}") {
         fun createRoute(name: String) = "artist?name=${Uri.encode(name)}"
     }
 
-    // Phase 8 — détail d'un album (playlist YouTube Music)
+    // Phase 8 — album detail (YouTube Music playlist)
     data object AlbumDetail : Routes("album?name={name}&url={url}") {
         fun createRoute(name: String, playlistUrl: String) =
             "album?name=${Uri.encode(name)}&url=${Uri.encode(playlistUrl)}"
     }
+
+    data object Settings : Routes("settings")
+
+    // Phase 1.0 — open-source licenses
+    data object Licenses : Routes("licenses")
 }
 
 data class BottomNavItem(
@@ -41,7 +46,7 @@ data class BottomNavItem(
 )
 
 val bottomNavItems = listOf(
-    BottomNavItem(Routes.Home.route,    "Accueil",      Icons.Outlined.Home),
-    BottomNavItem(Routes.Search.route,  "Recherche",    Icons.Outlined.Search),
-    BottomNavItem(Routes.Library.route, "Bibliotheque", Icons.Outlined.LibraryMusic),
+    BottomNavItem(Routes.Home.route,    "Home",    Icons.Outlined.Home),
+    BottomNavItem(Routes.Search.route,  "Search",  Icons.Outlined.Search),
+    BottomNavItem(Routes.Library.route, "Library", Icons.Outlined.LibraryMusic),
 )

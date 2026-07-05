@@ -1,0 +1,384 @@
+# Instincts generated from https://github.com/Ultra0Magnus/Musix
+# Generated: 2026-07-05T13:07:48.934Z
+# Version: 2.0
+# NOTE: This file supplements (does not replace) any existing curated instincts.
+# High-confidence manually curated instincts should be preserved alongside these.
+
+---
+id: Musix-commit-conventional
+trigger: "when writing a commit message"
+confidence: 0.85
+domain: git
+source: repo-analysis
+source_repo: https://github.com/Ultra0Magnus/Musix
+---
+
+# Musix Commit Conventional
+
+## Action
+
+Use conventional commit format with prefixes: fix, build, docs
+
+## Evidence
+
+- 6 commits analyzed
+- Detected conventional commit pattern
+- Examples: docs: add full project audit report (AUDIT.md), fix: clearing the stream cache no longer breaks playback caching
+
+---
+id: Musix-commit-length
+trigger: "when writing a commit message"
+confidence: 0.6
+domain: git
+source: repo-analysis
+source_repo: https://github.com/Ultra0Magnus/Musix
+---
+
+# Musix Commit Length
+
+## Action
+
+Write moderate-length commit messages (~51 characters)
+
+## Evidence
+
+- Average commit message length: 51 chars
+- Based on 6 commits
+
+---
+id: Musix-naming-files
+trigger: "when creating a new file"
+confidence: 0.8
+domain: code-style
+source: repo-analysis
+source_repo: https://github.com/Ultra0Magnus/Musix
+---
+
+# Musix Naming Files
+
+## Action
+
+Use PascalCase naming convention
+
+## Evidence
+
+- Analyzed file naming patterns in repository
+- Dominant pattern: PascalCase
+
+---
+id: Musix-import-relative
+trigger: "when importing modules"
+confidence: 0.75
+domain: code-style
+source: repo-analysis
+source_repo: https://github.com/Ultra0Magnus/Musix
+---
+
+# Musix Import Relative
+
+## Action
+
+Use relative imports for project files
+
+## Evidence
+
+- Import analysis shows relative import pattern
+- Example: import { x } from '../lib/x'
+
+---
+id: Musix-export-style
+trigger: "when exporting from a module"
+confidence: 0.7
+domain: code-style
+source: repo-analysis
+source_repo: https://github.com/Ultra0Magnus/Musix
+---
+
+# Musix Export Style
+
+## Action
+
+Prefer named exports
+
+## Evidence
+
+- Export pattern analysis
+- Dominant style: named
+
+---
+id: Musix-test-separate
+trigger: "when writing tests"
+confidence: 0.8
+domain: testing
+source: repo-analysis
+source_repo: https://github.com/Ultra0Magnus/Musix
+---
+
+# Musix Test Separate
+
+## Action
+
+Place tests in the tests/ or __tests__/ directory, mirroring src structure
+
+## Evidence
+
+- Separate test directory pattern detected
+- Tests live in dedicated test folders
+
+---
+id: Musix-workflow-room-database-schema-migration
+trigger: "when doing room database schema migration"
+confidence: 0.6
+domain: workflow
+source: repo-analysis
+source_repo: https://github.com/Ultra0Magnus/Musix
+---
+
+# Musix Workflow Room Database Schema Migration
+
+## Action
+
+Follow the room-database-schema-migration workflow:
+1. Update the Room database class (e.g., MusixDatabase.kt) to define new schema version and migration logic.
+2. Update build.gradle.kts to enable exportSchema and configure room.schemaLocation.
+3. Commit the generated schema file under app/schemas/ for the new version.
+
+## Evidence
+
+- Workflow detected from commit patterns
+- Frequency: ~2x per month
+- Files: app/src/main/java/com/louis/musix/data/local/MusixDatabase.kt, app/build.gradle.kts, app/schemas/com.louis.musix.data.local.MusixDatabase/*.json
+
+---
+id: musix-instinct-filename-pascalcase
+trigger: "When creating or renaming a Kotlin source file"
+confidence: 0.8
+domain: code-style
+source: repo-analysis
+source_repo: Ultra0Magnus/Musix
+---
+
+# Musix Instinct Filename Pascalcase
+
+## Action
+
+Name the file using PascalCase (e.g., MusixDatabase.kt)
+
+## Evidence
+
+- Pattern in files: app/src/main/java/com/louis/musix/data/local/MusixDatabase.kt
+
+---
+id: musix-instinct-function-camelcase
+trigger: "When defining a function in Kotlin"
+confidence: 0.8
+domain: code-style
+source: repo-analysis
+source_repo: Ultra0Magnus/Musix
+---
+
+# Musix Instinct Function Camelcase
+
+## Action
+
+Name the function using camelCase (e.g., clearStreamCache)
+
+## Evidence
+
+- Pattern in code: Kotlin function naming conventions
+
+---
+id: musix-instinct-class-pascalcase
+trigger: "When defining a class in Kotlin"
+confidence: 0.8
+domain: code-style
+source: repo-analysis
+source_repo: Ultra0Magnus/Musix
+---
+
+# Musix Instinct Class Pascalcase
+
+## Action
+
+Name the class using PascalCase (e.g., MusixDatabase)
+
+## Evidence
+
+- Pattern in files: app/src/main/java/com/louis/musix/data/local/MusixDatabase.kt
+
+---
+id: musix-instinct-constant-screaming-snake-case
+trigger: "When declaring a constant in Kotlin"
+confidence: 0.8
+domain: code-style
+source: repo-analysis
+source_repo: Ultra0Magnus/Musix
+---
+
+# Musix Instinct Constant Screaming Snake Case
+
+## Action
+
+Name the constant using SCREAMING_SNAKE_CASE
+
+## Evidence
+
+- Pattern in code: Kotlin constant naming conventions
+
+---
+id: musix-instinct-import-relative
+trigger: "When importing modules in Kotlin files"
+confidence: 0.7
+domain: code-style
+source: repo-analysis
+source_repo: Ultra0Magnus/Musix
+---
+
+# Musix Instinct Import Relative
+
+## Action
+
+Use relative imports
+
+## Evidence
+
+- Pattern in code: import statements in Kotlin files
+
+---
+id: musix-instinct-export-named
+trigger: "When exporting classes or functions in Kotlin"
+confidence: 0.7
+domain: code-style
+source: repo-analysis
+source_repo: Ultra0Magnus/Musix
+---
+
+# Musix Instinct Export Named
+
+## Action
+
+Use named exports
+
+## Evidence
+
+- Pattern in code: Kotlin file exports
+
+---
+id: musix-instinct-test-in-separate-folder
+trigger: "When adding or updating tests"
+confidence: 0.8
+domain: testing
+source: repo-analysis
+source_repo: Ultra0Magnus/Musix
+---
+
+# Musix Instinct Test In Separate Folder
+
+## Action
+
+Place test files in a separate test directory, not alongside source files
+
+## Evidence
+
+- Pattern in architecture: testLocation is 'separate'
+
+---
+id: musix-instinct-git-conventional-commits
+trigger: "When writing a commit message"
+confidence: 0.9
+domain: git
+source: repo-analysis
+source_repo: Ultra0Magnus/Musix
+---
+
+# Musix Instinct Git Conventional Commits
+
+## Action
+
+Use a conventional commit prefix (fix, build, docs) followed by a colon and a short description
+
+## Evidence
+
+- Seen in commit: docs: add full project audit report (AUDIT.md)
+- Seen in commit: fix: clearing the stream cache no longer breaks playback caching
+- Seen in commit: build: commit the Gradle wrapper
+
+---
+id: musix-instinct-git-commit-length
+trigger: "When composing a commit message"
+confidence: 0.7
+domain: git
+source: repo-analysis
+source_repo: Ultra0Magnus/Musix
+---
+
+# Musix Instinct Git Commit Length
+
+## Action
+
+Keep the commit message concise, averaging around 50 characters
+
+## Evidence
+
+- Pattern: average commit message length is 51 characters
+
+---
+id: musix-instinct-room-schema-migration-step1
+trigger: "When changing the Room database schema (e.g., adding columns or tables)"
+confidence: 0.9
+domain: workflow
+source: repo-analysis
+source_repo: Ultra0Magnus/Musix
+---
+
+# Musix Instinct Room Schema Migration Step1
+
+## Action
+
+Update MusixDatabase.kt to define the new schema version and migration logic
+
+## Evidence
+
+- Workflow: room-database-schema-migration
+- Files: app/src/main/java/com/louis/musix/data/local/MusixDatabase.kt
+
+---
+id: musix-instinct-room-schema-migration-step2
+trigger: "After updating the Room database schema version and migration logic"
+confidence: 0.9
+domain: workflow
+source: repo-analysis
+source_repo: Ultra0Magnus/Musix
+---
+
+# Musix Instinct Room Schema Migration Step2
+
+## Action
+
+Update app/build.gradle.kts to enable exportSchema and configure room.schemaLocation
+
+## Evidence
+
+- Workflow: room-database-schema-migration
+- Files: app/build.gradle.kts
+
+---
+id: musix-instinct-room-schema-migration-step3
+trigger: "After updating build.gradle.kts for schema export"
+confidence: 0.9
+domain: workflow
+source: repo-analysis
+source_repo: Ultra0Magnus/Musix
+---
+
+# Musix Instinct Room Schema Migration Step3
+
+## Action
+
+Commit the generated schema file under app/schemas/com.louis.musix.data.local.MusixDatabase/ for the new version
+
+## Evidence
+
+- Workflow: room-database-schema-migration
+- Files: app/schemas/com.louis.musix.data.local.MusixDatabase/*.json
+

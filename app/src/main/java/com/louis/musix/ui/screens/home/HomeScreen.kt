@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -13,6 +14,10 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -29,11 +34,12 @@ import org.koin.androidx.compose.koinViewModel
 @Composable
 fun HomeScreen(
     onSongClick: (Song) -> Unit = {},
+    onSettingsClick: () -> Unit = {},
 ) {
     val vm: HomeViewModel = koinViewModel()
     val recentlyPlayed by vm.recentlyPlayed.collectAsStateWithLifecycle()
     val favorites by vm.favorites.collectAsStateWithLifecycle()
-    val trending by vm.trending.collectAsStateWithLifecycle()
+    val suggestions by vm.suggestions.collectAsStateWithLifecycle()
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -41,49 +47,78 @@ fun HomeScreen(
         verticalArrangement = Arrangement.spacedBy(24.dp),
     ) {
         item {
-            Text(
-                text = "Bonjour",
-                style = MaterialTheme.typography.headlineMedium,
-                color = MaterialTheme.colorScheme.onBackground,
-                modifier = Modifier.padding(horizontal = 16.dp),
-            )
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "Hello",
+                    style = MaterialTheme.typography.headlineMedium,
+                    color = MaterialTheme.colorScheme.onBackground,
+                )
+                IconButton(onClick = onSettingsClick) {
+                    Icon(
+                        imageVector = Icons.Default.Settings,
+                        contentDescription = "Settings",
+                        tint = MaterialTheme.colorScheme.onBackground
+                    )
+                }
+            }
         }
 
-        // ─── Continuer l'ecoute ──────────────────────────────────────────────
+        // ─── Continue Listening ───────────────────────────────────────────────
         item {
             Section(
-                title = "Continuer l'ecoute",
-                emptyText = "Aucune ecoute recente",
+                title = "Continue Listening",
+                emptyText = "No recent plays",
                 songs = recentlyPlayed,
                 onSongClick = onSongClick,
             )
         }
 
-        // ─── Tes favoris ─────────────────────────────────────────────────────
+        // ─── Your Favorites ───────────────────────────────────────────────────
         item {
             Section(
-                title = "Tes favoris",
-                emptyText = "Aucun favori pour l'instant",
+                title = "Your Favorites",
+                emptyText = "No favorites yet",
                 songs = favorites,
                 onSongClick = onSongClick,
             )
         }
 
-        // ─── Tendances YouTube ───────────────────────────────────────────────
-        item {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                SectionTitle("Tendances YouTube")
-                when (val state = trending) {
-                    is TrendingState.Loading -> ShimmerCarousel()
-                    is TrendingState.Success -> SongCarousel(state.songs, onSongClick)
-                    is TrendingState.Error -> ErrorMessage(state.message)
+        // ─── Suggestions ──────────────────────────────────────────────────────
+        when (val state = suggestions) {
+            is SuggestionsState.Loading -> {
+                item {
+                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        SectionTitle("Suggestions")
+                        ShimmerCarousel()
+                    }
                 }
+            }
+            is SuggestionsState.Success -> {
+                item {
+                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        val artistsText = state.artists.joinToString(", ")
+                        SectionTitle("Because you listen to $artistsText")
+                        SongCarousel(state.songs, onSongClick)
+                    }
+                }
+            }
+            is SuggestionsState.Error -> {
+                // Optionally show error or hide
+            }
+            SuggestionsState.Hidden -> {
+                // Do nothing
             }
         }
     }
 }
 
-// ─── Sous-composants ──────────────────────────────────────────────────────────
+// ─── Sub-composables ──────────────────────────────────────────────────────────
 
 @Composable
 private fun Section(
@@ -157,22 +192,6 @@ private fun EmptySection(text: String) {
             text = text,
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-    }
-}
-
-@Composable
-private fun ErrorMessage(message: String) {
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 24.dp),
-        contentAlignment = Alignment.CenterStart,
-    ) {
-        Text(
-            text = "Erreur tendances : $message",
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.error,
         )
     }
 }

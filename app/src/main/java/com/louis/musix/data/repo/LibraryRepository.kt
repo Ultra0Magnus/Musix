@@ -16,8 +16,8 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 
 /**
- * Point d'entrée unique pour toutes les opérations de bibliothèque locale.
- * Cache les chansons, gère les favoris, l'historique et les playlists.
+ * Single entry point for all local library operations.
+ * Caches songs and manages favorites, history, and playlists.
  */
 class LibraryRepository(
     private val songDao: SongDao,
@@ -26,11 +26,24 @@ class LibraryRepository(
     private val playlistDao: PlaylistDao,
 ) {
 
-    // ─── Cache chanson (nécessaire avant toute opération FK) ──────────────────
+    // ─── Song cache (required before any FK operation) ────────────────────────
 
     suspend fun cacheSong(song: Song) = songDao.upsert(SongEntity.fromDomain(song))
 
-    // ─── Favoris ──────────────────────────────────────────────────────────────
+    suspend fun getSong(id: String): Song? = songDao.getSongById(id)?.toDomain()
+
+    fun getSongFlow(id: String): Flow<Song?> = songDao.getSongByIdFlow(id).map { it?.toDomain() }
+
+    // ─── Downloads ────────────────────────────────────────────────────────────
+
+    val downloadedSongs: Flow<List<Song>> = 
+        songDao.getDownloadedSongs().map { list -> list.map { it.toDomain() } }
+
+    suspend fun updateDownloadStatus(id: String, isDownloaded: Boolean, localPath: String?) {
+        songDao.updateDownloadStatus(id, isDownloaded, localPath)
+    }
+
+    // ─── Favorites ────────────────────────────────────────────────────────────
 
     val favoriteSongs: Flow<List<Song>> =
         favoriteDao.getFavoriteSongs().map { list -> list.map { it.toDomain() } }
@@ -46,7 +59,7 @@ class LibraryRepository(
         }
     }
 
-    // ─── Historique ───────────────────────────────────────────────────────────
+    // ─── History ──────────────────────────────────────────────────────────────
 
     val history: Flow<List<Song>> = historyDao.getHistory().map { list ->
         list.map { entry ->
@@ -57,6 +70,8 @@ class LibraryRepository(
                 thumbnailUrl    = entry.thumbnailUrl,
                 durationSeconds = entry.durationSeconds,
                 videoUrl        = entry.videoUrl,
+                isDownloaded    = entry.isDownloaded,
+                localFilePath   = entry.localFilePath,
             )
         }
     }
@@ -90,6 +105,9 @@ class LibraryRepository(
     suspend fun getPlaylistName(playlistId: Long): String? =
         playlistDao.getPlaylistName(playlistId)
 
+    suspend fun getPlaylistIdByName(name: String): Long? =
+        playlistDao.getPlaylistIdByName(name)
+
     suspend fun addSongToPlaylist(playlistId: Long, song: Song) {
         cacheSong(song)
         val position = playlistDao.getSongCount(playlistId)
@@ -98,4 +116,11 @@ class LibraryRepository(
 
     suspend fun removeSongFromPlaylist(playlistId: Long, songId: String) =
         playlistDao.removeSong(playlistId, songId)
+
+    /** Persists a new song order for [playlistId] by updating each song's position. */
+    suspend fun reorderSongs(playlistId: Long, songs: List<Song>) {
+        songs.forEachIndexed { index, song ->
+            playlistDao.updatePosition(playlistId, song.id, index)
+        }
+    }
 }

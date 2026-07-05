@@ -7,7 +7,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.ArrowBackIosNew
 import androidx.compose.material3.CircularProgressIndicator
@@ -32,19 +32,19 @@ import com.louis.musix.ui.components.SongRow
 import org.koin.androidx.compose.koinViewModel
 
 /**
- * Écran de détail d'un album : liste des pistes issues d'une playlist YouTube Music.
+ * Album detail screen: lists tracks from a YouTube Music playlist.
  *
- * @param albumName    Nom de l'album (affiché dans la TopAppBar).
- * @param playlistUrl  URL de la playlist YouTube Music.
- * @param onSongClick  Lance la lecture d'un morceau.
- * @param onBack       Retour arrière.
+ * @param albumName    Album name (displayed in the TopAppBar).
+ * @param playlistUrl  YouTube Music playlist URL.
+ * @param onSongClick  Starts playback of a track.
+ * @param onBack       Navigates back.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AlbumDetailScreen(
     albumName: String,
     playlistUrl: String,
-    onSongClick: (Song) -> Unit,
+    onSongClick: (songs: List<Song>, index: Int) -> Unit,
     onBack: () -> Unit,
 ) {
     val viewModel: AlbumDetailViewModel = koinViewModel()
@@ -60,7 +60,7 @@ fun AlbumDetailScreen(
                 title = { Text(albumName) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.Outlined.ArrowBackIosNew, contentDescription = "Retour")
+                        Icon(Icons.Outlined.ArrowBackIosNew, contentDescription = "Back")
                     }
                 },
             )
@@ -88,15 +88,21 @@ fun AlbumDetailScreen(
                 ) {
                     item {
                         Text(
-                            text     = "${s.songs.size} titre${if (s.songs.size > 1) "s" else ""}",
+                            text     = "${s.songs.size} track${if (s.songs.size > 1) "s" else ""}",
                             style    = MaterialTheme.typography.labelMedium,
                             color    = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.padding(start = 16.dp, top = 8.dp, bottom = 4.dp),
                         )
                     }
 
-                    items(items = s.songs, key = { it.id }) { song ->
-                        SongRow(song = song, onClick = onSongClick)
+                    itemsIndexed(
+                        items = s.songs,
+                        key   = { i, song -> "${i}_${song.id}" },
+                    ) { index, song ->
+                        SongRow(
+                            song    = song,
+                            onClick = { onSongClick(s.songs, index) },
+                        )
                         HorizontalDivider(
                             modifier = Modifier.padding(horizontal = 16.dp),
                             color    = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f),

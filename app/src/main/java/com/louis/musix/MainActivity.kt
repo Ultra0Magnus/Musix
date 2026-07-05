@@ -14,18 +14,27 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.louis.musix.data.spotify.SpotifyAuthManager
+import com.louis.musix.domain.util.NetworkMonitor
 import com.louis.musix.player.PlayerController
 import com.louis.musix.ui.components.MiniPlayer
 import com.louis.musix.ui.navigation.MusixBottomBar
@@ -38,13 +47,13 @@ import org.koin.compose.koinInject
 
 class MainActivity : ComponentActivity() {
 
-    // Injection Koin au niveau de l'Activity (pas dans le scope Compose)
+    // Koin injection at the Activity level (not in the Compose scope)
     private val spotifyAuthManager: SpotifyAuthManager by inject()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
-        // Vérifier si l'Activity a été démarrée par le deep link Spotify (démarrage à froid)
+        // Check whether the Activity was started by the Spotify deep link (cold start)
         handleSpotifyCallback(intent)
         setContent {
             KoinContext {
@@ -55,15 +64,15 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    /** Appelé quand l'app est déjà en foreground et reçoit le deep link (singleTop). */
+    /** Called when the app is already in the foreground and receives the deep link (singleTop). */
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         handleSpotifyCallback(intent)
     }
 
     /**
-     * Extrait le code ou l'erreur du deep link musix://callback
-     * et le pousse dans [SpotifyAuthManager].
+     * Extracts the auth code or error from the musix://callback deep link
+     * and forwards it to [SpotifyAuthManager].
      */
     private fun handleSpotifyCallback(intent: Intent?) {
         val uri = intent?.data ?: return
@@ -88,17 +97,20 @@ private fun MusixContent() {
     val playerController: PlayerController = koinInject()
     val playerState by playerController.state.collectAsStateWithLifecycle()
 
-    // ── Demande la permission POST_NOTIFICATIONS sur Android 13+ ──────────────
+    val networkMonitor: NetworkMonitor = koinInject()
+    val isOnline by networkMonitor.isOnline.collectAsStateWithLifecycle()
+
+    // ── Request POST_NOTIFICATIONS permission on Android 13+ ──────────────────
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
         val launcher = rememberLauncherForActivityResult(
             contract = ActivityResultContracts.RequestPermission()
-        ) { /* granted ou refusé — la notification fonctionnera ou non, sans crash */ }
+        ) { /* granted or denied — the notification will work or not, without crashing */ }
         LaunchedEffect(Unit) {
             launcher.launch(Manifest.permission.POST_NOTIFICATIONS)
         }
     }
 
-    // La BottomBar (et le MiniPlayer) sont cachés sur les écrans plein-écran
+    // The BottomBar (and MiniPlayer) are hidden on full-screen screens
     val showBottomBar = currentRoute != Routes.Player.route &&
                         currentRoute != Routes.SpotifyImport.route
 
@@ -107,7 +119,29 @@ private fun MusixContent() {
         bottomBar = {
             if (showBottomBar) {
                 Column {
-                    // ── MiniPlayer — slide vertical anime ─────────────────────
+                    // ── Offline Banner ──────────────────────────────────────────
+                    AnimatedVisibility(
+                        visible = !isOnline,
+                        enter = slideInVertically(initialOffsetY = { it }) + fadeIn(),
+                        exit  = slideOutVertically(targetOffsetY = { it }) + fadeOut(),
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .background(MaterialTheme.colorScheme.error)
+                                .padding(vertical = 4.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = "No internet connection. Showing downloaded music only.",
+                                color = MaterialTheme.colorScheme.onError,
+                                style = MaterialTheme.typography.labelSmall,
+                                textAlign = TextAlign.Center
+                            )
+                        }
+                    }
+
+                    // ── MiniPlayer — animated vertical slide ──────────────────
                     AnimatedVisibility(
                         visible = playerState.hasActiveMedia,
                         enter = slideInVertically(initialOffsetY = { it }) + fadeIn(),
@@ -121,7 +155,7 @@ private fun MusixContent() {
                             }
                         )
                     }
-                    // ── Barre de navigation principale ─────────────────────────
+                    // ── Main navigation bar ────────────────────────────────────
                     MusixBottomBar(
                         currentRoute = currentRoute,
                         onNavigate = { route ->

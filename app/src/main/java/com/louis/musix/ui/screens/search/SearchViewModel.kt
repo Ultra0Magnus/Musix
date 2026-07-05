@@ -9,30 +9,24 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import org.schabi.newpipe.extractor.Page
 
-// ─── État de l'écran de recherche ──────────────────────────────────────────────
+// ─── Search screen state ──────────────────────────────────────────────────────
 
 sealed class SearchUiState {
-    /** Aucune recherche en cours (état initial) */
-    data object Idle : SearchUiState()
-    /** Recherche en cours : on montre un spinner */
+    data object Idle    : SearchUiState()
     data object Loading : SearchUiState()
-    /** Résultats reçus */
-    data class Success(val songs: List<Song>) : SearchUiState()
-    /** Erreur réseau ou YouTube */
+    data class Success(
+        val songs:         List<Song>,
+        val nextPage:      Page?   = null,
+        val query:         String  = "",
+        val isLoadingMore: Boolean = false,
+    ) : SearchUiState()
     data class Error(val message: String) : SearchUiState()
 }
 
-// ─── ViewModel ─────────────────────────────────────────────────────────────────
+// ─── ViewModel ────────────────────────────────────────────────────────────────
 
-/**
- * ViewModel de l'écran de recherche.
- *
- * - Expose [uiState] (StateFlow) : la UI l'observe et se recompose automatiquement.
- * - Expose [query] : le texte saisi dans le TextField.
- * - [onQueryChange] : appelé à chaque frappe.
- * - [onSearch] : appelé quand l'utilisateur valide (touche Entrée ou bouton).
- */
 class SearchViewModel(
     private val repository: YouTubeRepository
 ) : ViewModel() {
@@ -43,34 +37,81 @@ class SearchViewModel(
     private val _query = MutableStateFlow("")
     val query: StateFlow<String> = _query.asStateFlow()
 
-    // Référence au Job en cours — permet d'annuler si l'utilisateur relance une recherche
+    /** Session history — last 10 searches, no duplicates. */
+    private val _searchHistory = MutableStateFlow<List<String>>(emptyList())
+    val searchHistory: StateFlow<List<String>> = _searchHistory.asStateFlow()
+
     private var searchJob: Job? = null
 
     fun onQueryChange(newQuery: String) {
         _query.value = newQuery
     }
 
+    /**
+     * Clears the query and returns to [SearchUiState.Idle],
+     * which shows the recent search history list.
+     */
+    fun clearSearch() {
+        searchJob?.cancel()
+        _query.value   = ""
+        _uiState.value = SearchUiState.Idle
+    }
+
     fun onSearch() {
         val q = _query.value.trim()
         if (q.isEmpty()) return
 
-        // Annule la recherche précédente si elle tourne encore
         searchJob?.cancel()
-
         searchJob = viewModelScope.launch {
             _uiState.value = SearchUiState.Loading
             try {
-                val results = repository.search(q)
-                _uiState.value = if (results.isEmpty()) {
-                    SearchUiState.Error("Aucun résultat pour « $q »")
+                val result = repository.searchPaged(q)
+                if (result.songs.isEmpty()) {
+                    _uiState.value = SearchUiState.Error("No results for \"$q\"")
                 } else {
-                    SearchUiState.Success(results)
+                    // Add to history (no duplicates, max 10)
+                    _searchHistory.value = listOf(q) +
+                        _searchHistory.value.filter { it != q }.take(9)
+                    _uiState.value = SearchUiState.Success(
+                        songs    = result.songs,
+                        nextPage = result.nextPage,
+                        query    = result.query,
+                    )
                 }
             } catch (e: Exception) {
                 _uiState.value = SearchUiState.Error(
-                    "Erreur : ${e.localizedMessage ?: "problème réseau"}"
+                    "Error: ${e.localizedMessage ?: "network issue"}"
                 )
             }
         }
+    }
+
+    /** Loads the next page — does nothing if already loading or no next page. */
+    fun loadMore() {
+        val current = _uiState.value as? SearchUiState.Success ?: return
+        val nextPage = current.nextPage ?: return
+        if (current.isLoadingMore) return
+
+        viewModelScope.launch {
+            _uiState.value = current.copy(isLoadingMore = true)
+            try {
+                val more = repository.searchMore(current.query, nextPage)
+                _uiState.value = SearchUiState.Success(
+                    songs         = current.songs + more.songs,
+                    nextPage      = more.nextPage,
+                    query         = more.query,
+                    isLoadingMore = false,
+                )
+            } catch (_: Exception) {
+                // Restore previous state without the spinner
+                _uiState.value = current.copy(isLoadingMore = false)
+            }
+        }
+    }
+
+    /** Re-runs a search from history. */
+    fun searchFromHistory(query: String) {
+        _query.value = query
+        onSearch()
     }
 }

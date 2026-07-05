@@ -16,6 +16,8 @@ import com.louis.musix.ui.screens.library.LibraryScreen
 import com.louis.musix.ui.screens.player.PlayerScreen
 import com.louis.musix.ui.screens.playlist.PlaylistDetailScreen
 import com.louis.musix.ui.screens.search.SearchScreen
+import com.louis.musix.ui.screens.settings.LicensesScreen
+import com.louis.musix.ui.screens.settings.SettingsScreen
 import com.louis.musix.ui.screens.spotify.SpotifyImportScreen
 import org.koin.compose.koinInject
 
@@ -26,13 +28,25 @@ fun MusixNavHost(
 ) {
     val songHolder: SelectedSongHolder = koinInject()
 
-    /** Navigue vers le Player avec la chanson selectionnee. */
+    /** Navigates to the Player with a standalone song (artist auto-queue). */
     fun playSong(song: Song) {
         songHolder.current = song
         navController.navigate(Routes.Player.route)
     }
 
-    /** Navigue vers la page artiste. */
+    /**
+     * Navigates to the Player loading an entire list as the playback queue.
+     * Used from playlists and albums — does NOT trigger artist auto-queue.
+     */
+    fun playFromList(songs: List<Song>, startIndex: Int) {
+        val song = songs.getOrNull(startIndex) ?: return
+        songHolder.current           = song
+        songHolder.pendingQueue      = songs
+        songHolder.pendingQueueIndex = startIndex
+        navController.navigate(Routes.Player.route)
+    }
+
+    /** Navigates to the artist page. */
     fun openArtist(name: String) {
         navController.navigate(Routes.Artist.createRoute(name))
     }
@@ -43,7 +57,10 @@ fun MusixNavHost(
         modifier = modifier,
     ) {
         composable(Routes.Home.route) {
-            HomeScreen(onSongClick = { song -> playSong(song) })
+            HomeScreen(
+                onSongClick = { song -> playSong(song) },
+                onSettingsClick = { navController.navigate(Routes.Settings.route) }
+            )
         }
 
         composable(Routes.Search.route) {
@@ -82,9 +99,9 @@ fun MusixNavHost(
         ) { backStackEntry ->
             val playlistId = backStackEntry.arguments?.getLong("playlistId") ?: return@composable
             PlaylistDetailScreen(
-                playlistId = playlistId,
-                onBack = { navController.popBackStack() },
-                onSongClick = { song -> playSong(song) },
+                playlistId  = playlistId,
+                onBack      = { navController.popBackStack() },
+                onSongClick = { songs, index -> playFromList(songs, index) },
             )
         }
 
@@ -98,7 +115,7 @@ fun MusixNavHost(
             val artistName = backStackEntry.arguments?.getString("name") ?: ""
             ArtistScreen(
                 artistName   = artistName,
-                onSongClick  = { song -> playSong(song) },
+                onSongClick  = { songs, index -> playFromList(songs, index) },
                 onAlbumClick = { album ->
                     navController.navigate(
                         Routes.AlbumDetail.createRoute(album.name, album.playlistUrl)
@@ -120,9 +137,20 @@ fun MusixNavHost(
             AlbumDetailScreen(
                 albumName   = albumName,
                 playlistUrl = playlistUrl,
-                onSongClick = { song -> playSong(song) },
+                onSongClick = { songs, index -> playFromList(songs, index) },
                 onBack      = { navController.popBackStack() },
             )
+        }
+        composable(Routes.Settings.route) {
+            SettingsScreen(
+                onBack          = { navController.popBackStack() },
+                onSpotifyClick  = { navController.navigate(Routes.SpotifyImport.route) },
+                onLicensesClick = { navController.navigate(Routes.Licenses.route) },
+            )
+        }
+
+        composable(Routes.Licenses.route) {
+            LicensesScreen(onBack = { navController.popBackStack() })
         }
     }
 }

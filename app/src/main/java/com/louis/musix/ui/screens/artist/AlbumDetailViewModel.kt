@@ -9,7 +9,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
-// ─── États de l'écran album ───────────────────────────────────────────────────
+// ─── Album screen states ─────────────────────────────────────────────────────
 
 sealed interface AlbumDetailUiState {
     data object Loading : AlbumDetailUiState
@@ -27,8 +27,8 @@ class AlbumDetailViewModel(
     val uiState: StateFlow<AlbumDetailUiState> = _uiState.asStateFlow()
 
     /**
-     * Récupère les pistes de l'album identifié par [playlistUrl].
-     * Appelé depuis un [LaunchedEffect] dans [AlbumDetailScreen].
+     * Loads tracks for the album identified by [playlistUrl].
+     * Called from a [LaunchedEffect] in [AlbumDetailScreen].
      */
     fun loadAlbum(albumName: String, playlistUrl: String) {
         viewModelScope.launch {
@@ -36,12 +36,12 @@ class AlbumDetailViewModel(
             try {
                 val songs = youtubeRepo.getAlbumTracks(playlistUrl)
                 _uiState.value = if (songs.isEmpty())
-                    AlbumDetailUiState.Error("Aucune piste trouvée dans cet album")
+                    AlbumDetailUiState.Error("No tracks found in this album")
                 else
                     AlbumDetailUiState.Success(albumName, songs)
             } catch (e: Exception) {
                 _uiState.value = AlbumDetailUiState.Error(
-                    e.localizedMessage ?: "Impossible de charger l'album"
+                    e.localizedMessage ?: "Failed to load album"
                 )
             }
         }

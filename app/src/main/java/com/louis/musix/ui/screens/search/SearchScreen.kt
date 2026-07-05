@@ -14,8 +14,11 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.FavoriteBorder
+import androidx.compose.material.icons.outlined.History
 import androidx.compose.material.icons.outlined.PlaylistAdd
+import androidx.compose.material.icons.outlined.QueueMusic
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
@@ -45,8 +48,11 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.louis.musix.data.repo.LibraryRepository
 import com.louis.musix.domain.model.Playlist
 import com.louis.musix.domain.model.Song
-import kotlinx.coroutines.flow.first
+import org.koin.compose.koinInject
+import com.louis.musix.player.PlayerController
 import com.louis.musix.ui.components.SongRow
+import com.louis.musix.domain.util.NetworkMonitor
+import org.koin.compose.koinInject
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import org.koin.androidx.compose.koinViewModel
@@ -59,24 +65,31 @@ fun SearchScreen(
     onArtistClick: (String) -> Unit = {},
 ) {
     val viewModel: SearchViewModel = koinViewModel()
-    val libraryRepo: LibraryRepository = koinInject()
-
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val query by viewModel.query.collectAsStateWithLifecycle()
+    val searchHistory by viewModel.searchHistory.collectAsStateWithLifecycle()
+
+    val networkMonitor: NetworkMonitor = koinInject()
+    val isOnline by networkMonitor.isOnline.collectAsStateWithLifecycle()
+
+    // Needs to interact with Room (playlists, favorites) when the BottomSheet opens
+    val libraryRepo: LibraryRepository = koinInject()
+    val playerController: PlayerController = koinInject()
+
     val keyboard = LocalSoftwareKeyboardController.current
     val scope = rememberCoroutineScope()
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
-    // Chanson selectionnee pour le menu options
+    // Song selected for the options menu
     var optionsSong by remember { mutableStateOf<Song?>(null) }
     var showSheet by remember { mutableStateOf(false) }
-    // Dialog selection playlist
+    // Playlist selection dialog
     var showPlaylistDialog by remember { mutableStateOf(false) }
     var playlists by remember { mutableStateOf<List<Playlist>>(emptyList()) }
-    // Etat favori de la chanson dans le sheet
+    // Favorite state of the song in the sheet
     var isFavoriteSong by remember { mutableStateOf(false) }
 
-    // Bottom sheet options
+    // Options bottom sheet
     if (showSheet && optionsSong != null) {
         ModalBottomSheet(
             onDismissRequest = { showSheet = false },
@@ -97,7 +110,7 @@ fun SearchScreen(
                 HorizontalDivider()
                 Spacer(Modifier.height(8.dp))
 
-                // Bouton favori
+                // Favorite button
                 TextButton(
                     onClick = {
                         scope.launch {
@@ -114,10 +127,23 @@ fun SearchScreen(
                                else MaterialTheme.colorScheme.onSurface,
                     )
                     Spacer(Modifier.size(8.dp))
-                    Text(if (isFavoriteSong) "Retirer des favoris" else "Ajouter aux favoris")
+                    Text(if (isFavoriteSong) "Remove from favorites" else "Add to favorites")
                 }
 
-                // Bouton ajouter a une playlist
+                // Add to queue button
+                TextButton(
+                    onClick = {
+                        playerController.addToQueue(optionsSong!!)
+                        showSheet = false
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Icon(Icons.Outlined.QueueMusic, contentDescription = null)
+                    Spacer(Modifier.size(8.dp))
+                    Text("Add to queue")
+                }
+
+                // Add to playlist button
                 TextButton(
                     onClick = {
                         scope.launch {
@@ -129,7 +155,7 @@ fun SearchScreen(
                 ) {
                     Icon(Icons.Outlined.PlaylistAdd, contentDescription = null)
                     Spacer(Modifier.size(8.dp))
-                    Text("Ajouter a une playlist")
+                    Text("Add to playlist")
                 }
 
                 Spacer(Modifier.height(16.dp))
@@ -137,14 +163,14 @@ fun SearchScreen(
         }
     }
 
-    // Dialog selection de playlist
+    // Playlist selection dialog
     if (showPlaylistDialog && optionsSong != null) {
         AlertDialog(
             onDismissRequest = { showPlaylistDialog = false },
-            title = { Text("Choisir une playlist") },
+            title = { Text("Choose a playlist") },
             text = {
                 if (playlists.isEmpty()) {
-                    Text("Aucune playlist. Cree-en une depuis l'onglet Bibliotheque.")
+                    Text("No playlists. Create one from the Library tab.")
                 } else {
                     Column {
                         playlists.forEach { playlist ->
@@ -166,39 +192,38 @@ fun SearchScreen(
             },
             confirmButton = {},
             dismissButton = {
-                TextButton(onClick = { showPlaylistDialog = false }) { Text("Annuler") }
+                TextButton(onClick = { showPlaylistDialog = false }) { Text("Cancel") }
             },
         )
     }
 
     Column(modifier = Modifier.fillMaxSize()) {
 
-        // Barre de recherche
+        // Search bar
         OutlinedTextField(
             value = query,
             onValueChange = viewModel::onQueryChange,
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 12.dp),
-            placeholder = {
-                Text("Artiste, titre, album...", color = MaterialTheme.colorScheme.onSurfaceVariant)
-            },
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+            placeholder = { Text(if (isOnline) "Search songs or artists" else "Offline - Search unavailable") },
+            enabled = isOnline,
             leadingIcon = {
-                Icon(Icons.Outlined.Search, contentDescription = null)
+                Icon(Icons.Outlined.Search, contentDescription = "Search", tint = MaterialTheme.colorScheme.onSurfaceVariant)
             },
             trailingIcon = {
-                IconButton(onClick = {
-                    keyboard?.hide()
-                    viewModel.onSearch()
-                }) {
-                    Icon(Icons.Outlined.Search, contentDescription = "Lancer la recherche")
+                if (query.isNotEmpty()) {
+                    IconButton(onClick = {
+                        keyboard?.hide()
+                        viewModel.clearSearch()
+                    }) {
+                        Icon(Icons.Outlined.Close, contentDescription = "Clear search")
+                    }
                 }
             },
             singleLine = true,
             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
             keyboardActions = KeyboardActions(onSearch = {
                 keyboard?.hide()
-                viewModel.onSearch()
+                if (isOnline) viewModel.onSearch()
             }),
             colors = OutlinedTextFieldDefaults.colors(
                 focusedBorderColor = MaterialTheme.colorScheme.primary,
@@ -211,12 +236,43 @@ fun SearchScreen(
         when (val state = uiState) {
 
             is SearchUiState.Idle -> {
-                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text(
-                        "Tape un artiste ou un titre pour commencer",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
+                if (searchHistory.isEmpty()) {
+                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        Text(
+                            "Search for an artist or track to get started",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                } else {
+                    Column(modifier = Modifier.fillMaxSize().padding(horizontal = 8.dp)) {
+                        Text(
+                            "Recent searches",
+                            style = MaterialTheme.typography.labelLarge,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(start = 8.dp, top = 8.dp, bottom = 4.dp),
+                        )
+                        searchHistory.forEach { histQuery ->
+                            TextButton(
+                                onClick  = { viewModel.searchFromHistory(histQuery) },
+                                modifier = Modifier.fillMaxWidth(),
+                            ) {
+                                Icon(
+                                    Icons.Outlined.History,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(18.dp),
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                                Spacer(Modifier.size(12.dp))
+                                Text(
+                                    histQuery,
+                                    modifier = Modifier.weight(1f),
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurface,
+                                )
+                            }
+                        }
+                    }
                 }
             }
 
@@ -249,6 +305,27 @@ fun SearchScreen(
                             color = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f),
                         )
                     }
+                    // "Load more" button
+                    if (state.nextPage != null || state.isLoadingMore) {
+                        item {
+                            Box(
+                                modifier = Modifier.fillMaxWidth().padding(8.dp),
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                if (state.isLoadingMore) {
+                                    CircularProgressIndicator(modifier = Modifier.size(28.dp))
+                                } else {
+                                    TextButton(
+                                        onClick  = viewModel::loadMore,
+                                        modifier = Modifier.fillMaxWidth(),
+                                    ) {
+                                        Text("Load more results")
+                                    }
+                                }
+                            }
+                        }
+                    }
+
                     item { Spacer(Modifier.height(8.dp)) }
                 }
             }

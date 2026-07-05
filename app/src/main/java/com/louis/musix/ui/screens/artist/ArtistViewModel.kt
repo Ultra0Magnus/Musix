@@ -12,7 +12,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
-// ─── État de la page artiste ──────────────────────────────────────────────────
+// ─── Artist page state ───────────────────────────────────────────────────────
 
 data class ArtistUiState(
     // Top songs
@@ -35,11 +35,11 @@ class ArtistViewModel(
     val uiState: StateFlow<ArtistUiState> = _uiState.asStateFlow()
 
     /**
-     * Lance le chargement des top songs ET des albums en parallèle.
-     * Appelé depuis un [LaunchedEffect] dans [ArtistScreen].
+     * Loads top songs AND albums in parallel.
+     * Called from a [LaunchedEffect] in [ArtistScreen].
      */
     fun loadArtist(artistName: String) {
-        // Reset si on change d'artiste
+        // Reset on artist change
         _uiState.value = ArtistUiState()
 
         viewModelScope.launch {
@@ -57,7 +57,7 @@ class ArtistViewModel(
                 youtubeRepo.searchAlbums(artistName)
             }
 
-            // Récupération des résultats indépendamment (l'un ne bloque pas l'autre)
+            // Results collected independently (neither blocks the other)
             try {
                 val songs = songsJob.await()
                 _uiState.update { it.copy(topSongs = songs, isLoadingSongs = false) }
@@ -65,7 +65,7 @@ class ArtistViewModel(
                 _uiState.update {
                     it.copy(
                         isLoadingSongs = false,
-                        songsError = e.localizedMessage ?: "Erreur lors de la recherche",
+                        songsError = e.localizedMessage ?: "Search error",
                     )
                 }
             }
@@ -75,7 +75,7 @@ class ArtistViewModel(
                 _uiState.update { it.copy(albums = albums, isLoadingAlbums = false) }
             } catch (e: Exception) {
                 _uiState.update { it.copy(isLoadingAlbums = false) }
-                // Pas d'erreur visible si les albums ne chargent pas — section simplement vide
+                // No visible error if albums fail to load — section is simply empty
             }
         }
     }

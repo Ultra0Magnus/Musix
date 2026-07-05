@@ -7,10 +7,12 @@ import android.util.Log
 import androidx.core.content.ContextCompat
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
+import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.session.MediaController
 import androidx.media3.session.SessionToken
 import com.louis.musix.data.newpipe.YouTubeRepository
+import com.louis.musix.data.repo.LibraryRepository
 import com.louis.musix.domain.model.Song
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -29,7 +31,7 @@ import kotlin.coroutines.resumeWithException
 
 private const val TAG = "Musix.PlayerController"
 
-// ─── État exposé au reste de l'app ─────────────────────────────────────────────
+// ─── State exposed to the rest of the app ──────────────────────────────────────
 
 data class PlayerControllerState(
     val isPlaying: Boolean = false,
@@ -38,29 +40,36 @@ data class PlayerControllerState(
     val title: String = "",
     val artist: String = "",
     val artworkUri: String = "",
-    /** true dès qu'un MediaItem a été chargé (pour afficher le MiniPlayer) */
+    /** true once a MediaItem has been loaded (used to show the MiniPlayer). */
     val hasActiveMedia: Boolean = false,
-    /** Morceau en cours de lecture (mis à jour par setAndPlay). */
+    /** Currently playing song. */
     val currentSong: Song? = null,
-    /** Nombre total de morceaux dans la file d'attente. */
-    val queueSize: Int = 0,
-    /** Index (0-based) du morceau en cours dans la file d'attente. */
+    /** Full queue (immutable copy for the UI). */
+    val queue: List<Song> = emptyList(),
+    /** 0-based index of the current song in [queue]. */
     val currentQueueIndex: Int = 0,
+    /** Total number of songs in the queue. */
+    val queueSize: Int = 0,
+    val shuffleEnabled: Boolean = false,
+    val repeatMode: RepeatMode = RepeatMode.OFF,
+    /** Epoch millis when the sleep timer fires, or null if no timed sleep timer is set. */
+    val sleepTimerEndMs: Long? = null,
+    /** When true, playback pauses at the end of the current track. */
+    val sleepTimerEndOfTrack: Boolean = false,
 )
 
 // ─── Controller ─────────────────────────────────────────────────────────────────
 
 /**
- * Singleton qui wrape [MediaController] — le client Media3 qui parle à [MusixPlayerService].
+ * Singleton wrapping [MediaController] and managing the playback queue on the app side.
  *
- * Rôle :
- *  - Connecte à MusixPlayerService de façon asynchrone et transparente
- *  - Expose un [StateFlow<PlayerControllerState>] réactif (isPlaying, position…)
- *  - Fournit les actions play/pause/seek utilisées par PlayerViewModel et MiniPlayer
+ * YouTube URLs expire (~6h) — they cannot be pre-loaded into ExoPlayer.
+ * The queue is therefore managed here: [STATE_ENDED] → fetch next URL → play.
  */
 class PlayerController(
     private val context: Context,
     private val youtubeRepo: YouTubeRepository,
+    private val libraryRepo: LibraryRepository,
 ) {
 
     private var controller: MediaController? = null
@@ -68,18 +77,24 @@ class PlayerController(
     private val _state = MutableStateFlow(PlayerControllerState())
     val state: StateFlow<PlayerControllerState> = _state.asStateFlow()
 
-    // Scope de vie app (singleton Koin → même durée de vie que le process)
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
     private var positionJob: Job? = null
 
-    // ─── File d'attente interne ───────────────────────────────────────────────
-    // La queue est gérée au niveau app car les URLs YouTube expirent (~6h) :
-    // on ne peut pas les charger toutes d'avance dans ExoPlayer.
+    // ─── Internal queue ───────────────────────────────────────────────────────
+    // _originalQueue = insertion order (unshuffled)
+    // _queue         = active order (may be shuffled)
 
-    private val _queue = mutableListOf<Song>()
-    private var queueIdx = 0
+    private val _originalQueue = mutableListOf<Song>()
+    private val _queue         = mutableListOf<Song>()
+    private var queueIdx       = 0
+    private var _shuffleEnabled = false
+    private var _repeatMode     = RepeatMode.OFF
 
-    // ─── Listener Media3 ───────────────────────────────────────────────────────
+    // ─── Sleep timer ────────────────────────────────────────────────────────────
+    private var sleepTimerJob: Job? = null
+    private var pauseAtEndOfTrack = false
+
+    // ─── Media3 listener ─────────────────────────────────────────────────────
 
     private val playerListener = object : Player.Listener {
 
@@ -92,32 +107,70 @@ class PlayerController(
             val dur = controller?.duration?.coerceAtLeast(0L) ?: 0L
             _state.update { it.copy(durationMs = dur) }
 
-            // Fin du morceau → avance automatiquement vers le suivant dans la file
             if (playbackState == Player.STATE_ENDED) {
-                val next = _queue.getOrNull(queueIdx + 1)
-                if (next != null) {
-                    queueIdx++
-                    _state.update { it.copy(currentQueueIndex = queueIdx) }
-                    Log.d(TAG, "STATE_ENDED → auto-advance vers \"${next.title}\" (${queueIdx}/${_queue.size})")
-                    scope.launch { autoAdvanceTo(next) }
-                } else {
-                    Log.d(TAG, "STATE_ENDED → fin de la file d'attente")
-                }
+                onTrackEnded()
             }
         }
 
         override fun onMediaMetadataChanged(mediaMetadata: MediaMetadata) {
-            // Synchronise le titre/artiste depuis les metadata du MediaItem
-            // (utile si la lecture continue en arrière-plan et que l'UI se reconstruit)
             _state.update { it.copy(
-                title     = mediaMetadata.title?.toString() ?: _state.value.title,
-                artist    = mediaMetadata.artist?.toString() ?: _state.value.artist,
-                artworkUri= mediaMetadata.artworkUri?.toString() ?: _state.value.artworkUri,
+                title      = mediaMetadata.title?.toString()      ?: _state.value.title,
+                artist     = mediaMetadata.artist?.toString()     ?: _state.value.artist,
+                artworkUri = mediaMetadata.artworkUri?.toString() ?: _state.value.artworkUri,
             )}
+        }
+
+        override fun onPlayerError(error: PlaybackException) {
+            Log.e(TAG, "ExoPlayer Error: ${error.message} (code ${error.errorCode})")
+            _state.update { it.copy(isPlaying = false) }
+            
+            // Auto-skip: if playback fails, skip to next after 2 seconds
+            scope.launch {
+                delay(2000)
+                skipToNext()
+            }
         }
     }
 
-    // ─── Polling de position ──────────────────────────────────────────────────
+    // ─── Track ended ─────────────────────────────────────────────────────────
+
+    private fun onTrackEnded() {
+        // Sleep timer "end of track" → pause instead of advancing
+        if (pauseAtEndOfTrack) {
+            Log.d(TAG, "Sleep timer (end of track) → pausing")
+            controller?.pause()
+            clearSleepTimerState()
+            return
+        }
+        when (_repeatMode) {
+            RepeatMode.ONE -> {
+                // Replay current track
+                val current = _queue.getOrNull(queueIdx) ?: return
+                Log.d(TAG, "STATE_ENDED → repeat ONE: \"${current.title}\"")
+                scope.launch { autoAdvanceTo(current) }
+            }
+            RepeatMode.ALL -> {
+                val nextIdx = if (queueIdx + 1 < _queue.size) queueIdx + 1 else 0
+                queueIdx = nextIdx
+                val next = _queue.getOrNull(queueIdx) ?: return
+                Log.d(TAG, "STATE_ENDED → repeat ALL → \"${next.title}\" ($queueIdx/${_queue.size})")
+                pushQueueState()
+                scope.launch { autoAdvanceTo(next) }
+            }
+            RepeatMode.OFF -> {
+                val next = _queue.getOrNull(queueIdx + 1) ?: run {
+                    Log.d(TAG, "STATE_ENDED → end of queue")
+                    return
+                }
+                queueIdx++
+                Log.d(TAG, "STATE_ENDED → next \"${next.title}\" ($queueIdx/${_queue.size})")
+                pushQueueState()
+                scope.launch { autoAdvanceTo(next) }
+            }
+        }
+    }
+
+    // ─── Position polling ─────────────────────────────────────────────────────
 
     private fun startPositionPolling() {
         positionJob?.cancel()
@@ -131,13 +184,8 @@ class PlayerController(
         }
     }
 
-    // ─── Connexion au service ─────────────────────────────────────────────────
+    // ─── Service connection ───────────────────────────────────────────────────
 
-    /**
-     * Connecte à [MusixPlayerService] si ce n'est pas déjà fait.
-     * Idempotent — safe à appeler plusieurs fois.
-     * Doit s'exécuter sur le Main thread (obligation MediaController).
-     */
     suspend fun ensureConnected(): Boolean = withContext(Dispatchers.Main) {
         controller?.takeIf { it.isConnected }?.let { return@withContext true }
 
@@ -156,25 +204,21 @@ class PlayerController(
             }
             ctrl.addListener(playerListener)
             controller = ctrl
-            Log.d(TAG, "MediaController connecté")
+            Log.d(TAG, "MediaController connected")
             true
         } catch (e: Exception) {
-            Log.e(TAG, "Connexion au service KO : ${e.message}")
+            Log.e(TAG, "Connection failed: ${e.message}")
             false
         }
     }
 
-    // ─── Contrôles de lecture ─────────────────────────────────────────────────
+    // ─── Playback controls ────────────────────────────────────────────────────
 
-    /**
-     * Charge [audioUrl] dans ExoPlayer (via le service) et démarre la lecture.
-     * Les metadata de [song] alimentent la notification et le MiniPlayer.
-     */
     suspend fun setAndPlay(song: Song, audioUrl: String) {
-        if (!ensureConnected()) throw Exception("Service de lecture non disponible")
+        if (!ensureConnected()) throw Exception("Playback service unavailable")
 
         withContext(Dispatchers.Main) {
-            val ctrl = controller ?: throw Exception("MediaController non initialisé")
+            val ctrl = controller ?: throw Exception("MediaController not initialized")
 
             val mediaItem = MediaItem.Builder()
                 .setUri(audioUrl)
@@ -203,21 +247,46 @@ class PlayerController(
     }
 
     /**
-     * Définit la file d'attente sans changer la lecture en cours.
-     * Appelé par PlayerViewModel après qu'il a chargé les morceaux similaires.
-     *
-     * @param songs      Liste complète de la file (le morceau courant doit être en position [startIndex]).
-     * @param startIndex Index du morceau actuellement en lecture.
+     * Sets the playback queue without interrupting the current track.
+     * [startIndex] is the index of the already-playing song within [songs].
      */
     fun setQueue(songs: List<Song>, startIndex: Int = 0) {
-        _queue.clear()
-        _queue.addAll(songs)
-        queueIdx = startIndex.coerceIn(0, (songs.size - 1).coerceAtLeast(0))
-        _state.update { it.copy(
-            queueSize         = songs.size,
-            currentQueueIndex = queueIdx,
-        )}
-        Log.d(TAG, "File d'attente mise à jour : ${songs.size} morceaux, idx=$queueIdx")
+        _originalQueue.clear()
+        _originalQueue.addAll(songs)
+
+        val clampedIdx = startIndex.coerceIn(0, (songs.size - 1).coerceAtLeast(0))
+
+        if (_shuffleEnabled) {
+            rebuildShuffledQueue(currentSong = songs.getOrNull(clampedIdx))
+        } else {
+            _queue.clear()
+            _queue.addAll(songs)
+            queueIdx = clampedIdx
+        }
+
+        pushQueueState()
+        Log.d(TAG, "Queue: ${_queue.size} songs, idx=$queueIdx, shuffle=$_shuffleEnabled")
+    }
+
+    /** Adds a song to the end of the queue (and the original list). */
+    fun addToQueue(song: Song) {
+        _queue.add(song)
+        _originalQueue.add(song)
+        pushQueueState()
+        Log.d(TAG, "Added to queue: \"${song.title}\" (total ${_queue.size})")
+    }
+
+    /**
+     * Removes the song at [index] from the queue.
+     * The currently playing song ([queueIdx]) cannot be removed.
+     */
+    fun removeFromQueue(index: Int) {
+        if (index < 0 || index >= _queue.size || index == queueIdx) return
+        val removed = _queue.removeAt(index)
+        _originalQueue.remove(removed)
+        if (index < queueIdx) queueIdx--
+        pushQueueState()
+        Log.d(TAG, "Removed from queue: \"${removed.title}\"")
     }
 
     fun togglePlayPause() {
@@ -230,22 +299,21 @@ class PlayerController(
         _state.update { it.copy(currentPositionMs = positionMs) }
     }
 
-    /**
-     * Passe au morceau suivant dans la file d'attente.
-     * Récupère l'URL audio à la volée (les URLs YouTube expirent — pas de cache).
-     */
     fun skipToNext() {
-        val next = _queue.getOrNull(queueIdx + 1) ?: return
+        val next = _queue.getOrNull(queueIdx + 1) ?: run {
+            if (_repeatMode == RepeatMode.ALL && _queue.isNotEmpty()) {
+                queueIdx = 0
+                pushQueueState()
+                _queue.firstOrNull()?.let { scope.launch { autoAdvanceTo(it) } }
+            }
+            return
+        }
         queueIdx++
-        _state.update { it.copy(currentQueueIndex = queueIdx) }
+        pushQueueState()
         Log.d(TAG, "skipToNext → \"${next.title}\" ($queueIdx/${_queue.size})")
         scope.launch { autoAdvanceTo(next) }
     }
 
-    /**
-     * Revient au début du morceau si la position dépasse 3 s,
-     * sinon passe au morceau précédent dans la file d'attente.
-     */
     fun skipToPrevious() {
         val ctrl = controller ?: return
         if (ctrl.currentPosition > 3_000L) {
@@ -253,25 +321,125 @@ class PlayerController(
             return
         }
         val prev = _queue.getOrNull(queueIdx - 1)
-        if (prev == null) {
-            ctrl.seekTo(0L)
-            return
-        }
+        if (prev == null) { ctrl.seekTo(0L); return }
         queueIdx--
-        _state.update { it.copy(currentQueueIndex = queueIdx) }
+        pushQueueState()
         Log.d(TAG, "skipToPrevious → \"${prev.title}\" ($queueIdx/${_queue.size})")
         scope.launch { autoAdvanceTo(prev) }
     }
 
-    // ─── Avance automatique ───────────────────────────────────────────────────
+    // ─── Shuffle ──────────────────────────────────────────────────────────────
+
+    fun toggleShuffle() {
+        _shuffleEnabled = !_shuffleEnabled
+        val currentSong = _queue.getOrNull(queueIdx)
+
+        if (_shuffleEnabled) {
+            rebuildShuffledQueue(currentSong)
+        } else {
+            // Restore original order
+            _queue.clear()
+            _queue.addAll(_originalQueue)
+            queueIdx = currentSong?.let { song ->
+                _queue.indexOfFirst { it.id == song.id }.coerceAtLeast(0)
+            } ?: 0
+        }
+
+        pushQueueState()
+        Log.d(TAG, "Shuffle: $_shuffleEnabled")
+    }
+
+    private fun rebuildShuffledQueue(currentSong: Song?) {
+        val remaining = _originalQueue.toMutableList()
+        currentSong?.let { remaining.removeAll { it.id == currentSong.id } }
+
+        _queue.clear()
+        currentSong?.let { _queue.add(it) }
+        _queue.addAll(remaining.shuffled())
+        queueIdx = 0
+    }
+
+    // ─── Repeat ───────────────────────────────────────────────────────────────
+
+    fun cycleRepeatMode() {
+        _repeatMode = when (_repeatMode) {
+            RepeatMode.OFF -> RepeatMode.ALL
+            RepeatMode.ALL -> RepeatMode.ONE
+            RepeatMode.ONE -> RepeatMode.OFF
+        }
+        pushQueueState()
+        Log.d(TAG, "Repeat: $_repeatMode")
+    }
+
+    // ─── Sleep timer ───────────────────────────────────────────────────────────
+
+    /** Schedules a pause after [minutes] minutes. Replaces any existing timer. */
+    fun setSleepTimer(minutes: Int) {
+        sleepTimerJob?.cancel()
+        pauseAtEndOfTrack = false
+        val endMs = System.currentTimeMillis() + minutes * 60_000L
+        _state.update { it.copy(sleepTimerEndMs = endMs, sleepTimerEndOfTrack = false) }
+        sleepTimerJob = scope.launch {
+            delay(minutes * 60_000L)
+            Log.d(TAG, "Sleep timer fired → pausing")
+            controller?.pause()
+            clearSleepTimerState()
+        }
+        Log.d(TAG, "Sleep timer set: ${minutes} min")
+    }
+
+    /** Pauses playback when the current track ends. Replaces any existing timer. */
+    fun setSleepTimerEndOfTrack() {
+        sleepTimerJob?.cancel()
+        sleepTimerJob = null
+        pauseAtEndOfTrack = true
+        _state.update { it.copy(sleepTimerEndMs = null, sleepTimerEndOfTrack = true) }
+        Log.d(TAG, "Sleep timer set: end of track")
+    }
+
+    fun cancelSleepTimer() {
+        sleepTimerJob?.cancel()
+        sleepTimerJob = null
+        clearSleepTimerState()
+        Log.d(TAG, "Sleep timer cancelled")
+    }
+
+    private fun clearSleepTimerState() {
+        pauseAtEndOfTrack = false
+        _state.update { it.copy(sleepTimerEndMs = null, sleepTimerEndOfTrack = false) }
+    }
+
+    // ─── Auto-advance ─────────────────────────────────────────────────────────
 
     private suspend fun autoAdvanceTo(song: Song) {
         try {
-            Log.d(TAG, "Récupération URL audio pour \"${song.title}\"…")
-            val url = youtubeRepo.getAudioStreamUrl(song.videoUrl)
-            setAndPlay(song, url)
+            val audioUrl = if (song.isDownloaded && song.localFilePath != null) {
+                Log.d(TAG, "Playing downloaded audio for \"${song.title}\"")
+                song.localFilePath
+            } else {
+                Log.d(TAG, "Fetching audio URL for \"${song.title}\"…")
+                youtubeRepo.getAudioStreamUrl(song.videoUrl)
+            }
+            setAndPlay(song, audioUrl)
         } catch (e: Exception) {
-            Log.e(TAG, "autoAdvanceTo(\"${song.title}\") KO : ${e.message}")
+            Log.e(TAG, "autoAdvanceTo(\"${song.title}\") failed: ${e.message}")
+            // v0.9.3 - Auto-skip: if streaming URL extraction fails, skip to next after 2 seconds
+            scope.launch {
+                delay(2000)
+                skipToNext()
+            }
         }
+    }
+
+    // ─── Push state ───────────────────────────────────────────────────────────
+
+    private fun pushQueueState() {
+        _state.update { it.copy(
+            queue             = _queue.toList(),
+            queueSize         = _queue.size,
+            currentQueueIndex = queueIdx,
+            shuffleEnabled    = _shuffleEnabled,
+            repeatMode        = _repeatMode,
+        )}
     }
 }

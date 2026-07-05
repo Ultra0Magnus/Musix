@@ -15,6 +15,7 @@ captures/
 # ── Keystore (ne jamais versionner les clés de signature) ───────────────────
 *.jks
 *.keystore
+keystore.properties
 
 # ── Google Services (si ajouté plus tard) ───────────────────────────────────
 google-services.json

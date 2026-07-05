@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.ArrowBackIosNew
@@ -47,20 +48,20 @@ import com.louis.musix.ui.components.SongRow
 import org.koin.androidx.compose.koinViewModel
 
 /**
- * Page artiste — deux sections :
- *  1. Titres populaires (top 20 résultats YouTube Music)
- *  2. Albums (playlist YouTube Music de type "music_albums")
+ * Artist page — two sections:
+ *  1. Popular tracks (top 20 YouTube Music results)
+ *  2. Albums (YouTube Music "music_albums" playlist)
  *
- * @param artistName   Nom de l'artiste transmis par la navigation.
- * @param onSongClick  Lance la lecture d'un morceau.
- * @param onAlbumClick Ouvre le détail d'un album.
- * @param onBack       Retour arrière.
+ * @param artistName   Artist name passed via navigation.
+ * @param onSongClick  Starts playback of a track.
+ * @param onAlbumClick Opens the album detail screen.
+ * @param onBack       Navigates back.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ArtistScreen(
     artistName: String,
-    onSongClick: (Song) -> Unit,
+    onSongClick: (songs: List<Song>, index: Int) -> Unit,
     onAlbumClick: (ArtistAlbum) -> Unit,
     onBack: () -> Unit,
 ) {
@@ -77,7 +78,7 @@ fun ArtistScreen(
                 title = { Text(artistName) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.Outlined.ArrowBackIosNew, contentDescription = "Retour")
+                        Icon(Icons.Outlined.ArrowBackIosNew, contentDescription = "Back")
                     }
                 },
             )
@@ -90,10 +91,10 @@ fun ArtistScreen(
                 .padding(innerPadding),
         ) {
 
-            // ── Section "Titres populaires" ───────────────────────────────────
+            // ── Section "Popular Tracks" ──────────────────────────────────────
 
             item {
-                SectionTitle("Titres populaires")
+                SectionTitle("Popular Tracks")
             }
 
             when {
@@ -104,23 +105,29 @@ fun ArtistScreen(
                 }
                 state.songsError != null -> item {
                     Text(
-                        text    = state.songsError!!,
-                        style   = MaterialTheme.typography.bodySmall,
-                        color   = MaterialTheme.colorScheme.error,
+                        text     = state.songsError!!,
+                        style    = MaterialTheme.typography.bodySmall,
+                        color    = MaterialTheme.colorScheme.error,
                         modifier = Modifier.padding(16.dp),
                     )
                 }
                 state.topSongs.isEmpty() -> item {
                     Text(
-                        text    = "Aucun titre trouvé",
-                        style   = MaterialTheme.typography.bodyMedium,
-                        color   = MaterialTheme.colorScheme.onSurfaceVariant,
+                        text     = "No tracks found",
+                        style    = MaterialTheme.typography.bodyMedium,
+                        color    = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(16.dp),
                     )
                 }
                 else -> {
-                    items(items = state.topSongs, key = { it.id }) { song ->
-                        SongRow(song = song, onClick = onSongClick)
+                    itemsIndexed(
+                        items = state.topSongs,
+                        key   = { i, s -> "${i}_${s.id}" },
+                    ) { index, song ->
+                        SongRow(
+                            song    = song,
+                            onClick = { onSongClick(state.topSongs, index) },
+                        )
                         HorizontalDivider(
                             modifier = Modifier.padding(horizontal = 16.dp),
                             color    = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f),
@@ -150,9 +157,9 @@ fun ArtistScreen(
                 }
                 state.albums.isEmpty() -> item {
                     Text(
-                        text    = "Aucun album trouvé",
-                        style   = MaterialTheme.typography.bodyMedium,
-                        color   = MaterialTheme.colorScheme.onSurfaceVariant,
+                        text     = "No albums found",
+                        style    = MaterialTheme.typography.bodyMedium,
+                        color    = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(16.dp),
                     )
                 }
@@ -173,20 +180,20 @@ fun ArtistScreen(
     }
 }
 
-// ── Composants locaux ─────────────────────────────────────────────────────────
+// ── Local composables ─────────────────────────────────────────────────────────
 
 @Composable
 private fun SectionTitle(title: String) {
     Text(
-        text     = title,
-        style    = MaterialTheme.typography.titleMedium,
+        text       = title,
+        style      = MaterialTheme.typography.titleMedium,
         fontWeight = FontWeight.Bold,
-        modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 4.dp),
+        modifier   = Modifier.padding(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 4.dp),
     )
 }
 
 /**
- * Carte d'album cliquable : artwork carré 130dp + nom + nombre de pistes.
+ * Clickable album card: 130dp square artwork + name + track count.
  */
 @Composable
 private fun AlbumCard(
@@ -200,7 +207,6 @@ private fun AlbumCard(
             .padding(bottom = 8.dp),
         horizontalAlignment = Alignment.Start,
     ) {
-        // Artwork
         AsyncImage(
             model              = album.artworkUrl,
             contentDescription = album.name,
@@ -213,20 +219,18 @@ private fun AlbumCard(
 
         Spacer(Modifier.height(6.dp))
 
-        // Nom de l'album
         Text(
-            text     = album.name,
-            style    = MaterialTheme.typography.bodyMedium,
+            text       = album.name,
+            style      = MaterialTheme.typography.bodyMedium,
             fontWeight = FontWeight.Medium,
-            color    = MaterialTheme.colorScheme.onSurface,
-            maxLines = 2,
-            overflow = TextOverflow.Ellipsis,
+            color      = MaterialTheme.colorScheme.onSurface,
+            maxLines   = 2,
+            overflow   = TextOverflow.Ellipsis,
         )
 
-        // Nombre de pistes
         if (album.trackCount > 0) {
             Text(
-                text  = "${album.trackCount} titre${if (album.trackCount > 1) "s" else ""}",
+                text  = "${album.trackCount} track${if (album.trackCount > 1) "s" else ""}",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )

@@ -11,6 +11,7 @@ import com.louis.musix.data.spotify.model.SpotifyExportItem
 import com.louis.musix.data.spotify.model.SpotifyExportTrack
 import com.louis.musix.data.spotify.model.SpotifyLibraryExport
 import com.louis.musix.data.spotify.model.SpotifyPlaylistExport
+import com.louis.musix.data.spotify.model.SpotifyStreamingEntry
 import com.louis.musix.data.spotify.model.SpotifyTrack
 import com.louis.musix.domain.model.Song
 import kotlinx.coroutines.CancellationException
@@ -25,7 +26,7 @@ import kotlinx.serialization.json.Json
 
 private const val TAG = "Musix.SpotifyImport"
 
-// ── État de l'import ──────────────────────────────────────────────────────────
+// ── Import state ──────────────────────────────────────────────────────────────
 
 sealed interface ImportState {
     data object Idle        : ImportState
@@ -59,7 +60,7 @@ class SpotifyImportViewModel(
 
     private var importJob: Job? = null
 
-    // JSON parser commun (lenient pour tolérer les variations du format export)
+    // Shared JSON parser (lenient to tolerate export format variations)
     private val json = Json { ignoreUnknownKeys = true; isLenient = true }
 
     init {
@@ -70,7 +71,7 @@ class SpotifyImportViewModel(
                 val ok = authManager.exchangeCode(code)
                 if (ok) startApiImport()
                 else _importState.value = ImportState.Error(
-                    "Echec de l'authentification Spotify. Réessaie.",
+                    "Spotify authentication failed. Please try again.",
                 )
             }
         }
@@ -80,17 +81,17 @@ class SpotifyImportViewModel(
                 authManager.clearPendingError()
                 _importState.value = ImportState.Error(
                     when (error) {
-                        "access_denied" -> "Tu as refusé l'accès Spotify. Réessaie quand tu veux."
-                        else            -> "Erreur Spotify : $error"
+                        "access_denied" -> "You denied Spotify access. Try again whenever you like."
+                        else            -> "Spotify error: $error"
                     },
                 )
             }
         }
     }
 
-    // ── Actions publiques ──────────────────────────────────────────────────────
+    // ── Public actions ────────────────────────────────────────────────────────
 
-    /** Lance le flux OAuth (pour les comptes Premium). */
+    /** Starts the OAuth flow (for Premium accounts). */
     fun connectAndImport() {
         if (authManager.isConnected()) {
             startApiImport()
@@ -101,8 +102,8 @@ class SpotifyImportViewModel(
     }
 
     /**
-     * Import depuis les fichiers JSON de l'export RGPD Spotify.
-     * [files] = Map<nom_du_fichier, contenu_json>
+     * Import from Spotify GDPR export JSON files.
+     * [files] = Map<filename, json_content>
      */
     fun importFromJsonFiles(files: Map<String, String>) {
         importJob = viewModelScope.launch {
@@ -110,23 +111,129 @@ class SpotifyImportViewModel(
                 var tracksImported   = 0
                 var playlistsCreated = 0
 
-                // YourLibrary.json → playlist "Spotify - Titres aimés"
+                // ── Separate files by type ────────────────────────────────────
+                val streamingFiles = files.entries.filter {
+                    it.key.contains("Streaming_History_Audio", ignoreCase = true)
+                }
                 val libraryEntry = files.entries.firstOrNull {
                     it.key.contains("YourLibrary", ignoreCase = true)
                 }
+                val playlistFiles = files.entries.filter { (name, _) ->
+                    !name.contains("Streaming_History", ignoreCase = true) &&
+                    !name.contains("YourLibrary", ignoreCase = true) &&
+                    !name.contains("Streaming_History_Video", ignoreCase = true)
+                }
+
+                // ── A. Extended streaming history ─────────────────────────────
+                if (streamingFiles.isNotEmpty()) {
+                    _importState.value = ImportState.Importing(
+                        0, 0, "Analysing ${streamingFiles.size} history file(s)…",
+                    )
+
+                    // Parse all files
+                    val allEntries = mutableListOf<SpotifyStreamingEntry>()
+                    streamingFiles.forEach { (filename, content) ->
+                        try {
+                            val entries = json.decodeFromString<List<SpotifyStreamingEntry>>(content)
+                            allEntries.addAll(entries)
+                            Log.d(TAG, "$filename: ${entries.size} entries")
+                        } catch (e: Exception) {
+                            Log.w(TAG, "Parse error $filename: ${e.message}")
+                        }
+                    }
+                    Log.d(TAG, "Total raw entries: ${allEntries.size}")
+
+                    // Keep only real plays (≥ 30s, known track)
+                    val realPlays = allEntries.filter { e ->
+                        !e.trackName.isNullOrBlank() &&
+                        !e.artistName.isNullOrBlank() &&
+                        e.msPlayed >= 30_000L
+                    }
+                    Log.d(TAG, "Real plays (≥30s): ${realPlays.size}")
+
+                    // ── Top 50 all-time ───────────────────────────────────────
+                    data class TrackStats(val track: String, val artist: String, val totalMs: Long)
+
+                    val topAllTime = realPlays
+                        .groupBy { "${it.trackName}|||${it.artistName}" }
+                        .map { (_, plays) ->
+                            TrackStats(
+                                plays.first().trackName!!,
+                                plays.first().artistName!!,
+                                plays.sumOf { it.msPlayed },
+                            )
+                        }
+                        .sortedByDescending { it.totalMs }
+                        .take(50)
+
+                    if (topAllTime.isNotEmpty()) {
+                        val playlistId = libraryRepo.createPlaylist("Spotify — Top 50 All Time")
+                        playlistsCreated++
+                        topAllTime.forEachIndexed { i, s ->
+                            _importState.value = ImportState.Importing(
+                                i + 1, topAllTime.size, "Top 50 all time…",
+                            )
+                            searchAndSave("${s.track} ${s.artist}") { song ->
+                                libraryRepo.addSongToPlaylist(playlistId, song)
+                                tracksImported++
+                            }
+                            delay(300)
+                        }
+                    }
+
+                    // ── Top 20 by year (3 most recent years with data) ────────
+                    val yearRegex = Regex("""^(\d{4})-""")
+                    val recentYears = realPlays
+                        .mapNotNull { yearRegex.find(it.ts)?.groupValues?.get(1) }
+                        .toSet()
+                        .sortedDescending()
+                        .take(3)
+
+                    recentYears.forEach { year ->
+                        val yearPlays = realPlays.filter { it.ts.startsWith(year) }
+                        val top20 = yearPlays
+                            .groupBy { "${it.trackName}|||${it.artistName}" }
+                            .map { (_, plays) ->
+                                TrackStats(
+                                    plays.first().trackName!!,
+                                    plays.first().artistName!!,
+                                    plays.sumOf { it.msPlayed },
+                                )
+                            }
+                            .sortedByDescending { it.totalMs }
+                            .take(20)
+
+                        if (top20.isNotEmpty()) {
+                            val playlistId = libraryRepo.createPlaylist("Spotify — Top 20 $year")
+                            playlistsCreated++
+                            top20.forEachIndexed { i, s ->
+                                _importState.value = ImportState.Importing(
+                                    i + 1, top20.size, "Top 20 $year…",
+                                )
+                                searchAndSave("${s.track} ${s.artist}") { song ->
+                                    libraryRepo.addSongToPlaylist(playlistId, song)
+                                    tracksImported++
+                                }
+                                delay(300)
+                            }
+                        }
+                    }
+                }
+
+                // ── B. YourLibrary.json → "Spotify — Liked Tracks" playlist ──
                 if (libraryEntry != null) {
-                    _importState.value = ImportState.Importing(0, 0, "Lecture de YourLibrary.json...")
+                    _importState.value = ImportState.Importing(0, 0, "Reading YourLibrary.json…")
                     try {
                         val library = json.decodeFromString<SpotifyLibraryExport>(libraryEntry.value)
                         val tracks  = library.tracks.filter { it.track.isNotBlank() }
-                        Log.d(TAG, "${tracks.size} titres dans YourLibrary.json")
+                        Log.d(TAG, "${tracks.size} tracks in YourLibrary.json")
 
                         if (tracks.isNotEmpty()) {
-                            val playlistId = libraryRepo.createPlaylist("Spotify - Titres aimés")
+                            val playlistId = libraryRepo.createPlaylist("Spotify — Liked Tracks")
                             playlistsCreated++
                             tracks.forEachIndexed { i, t ->
                                 _importState.value = ImportState.Importing(
-                                    i + 1, tracks.size, "Titres aimés",
+                                    i + 1, tracks.size, "Liked tracks",
                                 )
                                 searchAndSave("${t.track} ${t.artist}") { song ->
                                     libraryRepo.addSongToPlaylist(playlistId, song)
@@ -136,20 +243,17 @@ class SpotifyImportViewModel(
                             }
                         }
                     } catch (e: Exception) {
-                        Log.w(TAG, "Erreur YourLibrary.json : ${e.message}")
+                        Log.w(TAG, "YourLibrary.json error: ${e.message}")
                     }
                 }
 
-                // PlaylistX.json → playlists individuelles
-                val playlistFiles = files.entries.filter {
-                    !it.key.contains("YourLibrary", ignoreCase = true)
-                }
+                // ── C. Playlist*.json → individual playlists ──────────────────
                 playlistFiles.forEach { (filename, content) ->
                     try {
                         val playlist   = json.decodeFromString<SpotifyPlaylistExport>(content)
                         val validItems = playlist.items.mapNotNull { it.track }
                             .filter { it.trackName.isNotBlank() }
-                        Log.d(TAG, "\"${playlist.name}\" : ${validItems.size} titres ($filename)")
+                        Log.d(TAG, "\"${playlist.name}\": ${validItems.size} tracks ($filename)")
 
                         if (validItems.isEmpty()) return@forEach
 
@@ -169,7 +273,7 @@ class SpotifyImportViewModel(
                             delay(300)
                         }
                     } catch (e: Exception) {
-                        Log.w(TAG, "Erreur $filename : ${e.message}")
+                        Log.w(TAG, "Error $filename: ${e.message}")
                     }
                 }
 
@@ -178,8 +282,8 @@ class SpotifyImportViewModel(
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                Log.e(TAG, "Import JSON KO : ${e.message}")
-                _importState.value = ImportState.Error(e.message ?: "Erreur lors de l'import")
+                Log.e(TAG, "JSON import failed: ${e.message}")
+                _importState.value = ImportState.Error(e.message ?: "Import error")
             }
         }
     }
@@ -196,7 +300,7 @@ class SpotifyImportViewModel(
         _importState.value = ImportState.Idle
     }
 
-    // ── Import via API Spotify (Premium requis) ───────────────────────────────
+    // ── API import (Premium required) ─────────────────────────────────────────
 
     private fun startApiImport() {
         importJob = viewModelScope.launch {
@@ -204,16 +308,16 @@ class SpotifyImportViewModel(
                 var tracksImported   = 0
                 var playlistsCreated = 0
 
-                _importState.value = ImportState.Importing(0, 0, "Récupération des titres aimés...")
+                _importState.value = ImportState.Importing(0, 0, "Fetching liked tracks...")
                 val savedTracks = spotifyRepo.getSavedTracks()
-                Log.d(TAG, "${savedTracks.size} titres aimés reçus de l'API")
+                Log.d(TAG, "${savedTracks.size} liked tracks received from API")
 
                 if (savedTracks.isNotEmpty()) {
-                    val likedId = libraryRepo.createPlaylist("Spotify - Titres aimés")
+                    val likedId = libraryRepo.createPlaylist("Spotify - Liked Tracks")
                     playlistsCreated++
                     savedTracks.forEachIndexed { i, track ->
                         _importState.value = ImportState.Importing(
-                            i + 1, savedTracks.size, "Titres aimés",
+                            i + 1, savedTracks.size, "Liked tracks",
                         )
                         importApiTrack(track) { song ->
                             libraryRepo.addSongToPlaylist(likedId, song)
@@ -223,9 +327,9 @@ class SpotifyImportViewModel(
                     }
                 }
 
-                _importState.value = ImportState.Importing(0, 0, "Récupération des playlists...")
+                _importState.value = ImportState.Importing(0, 0, "Fetching playlists...")
                 val spotifyPlaylists = spotifyRepo.getPlaylists()
-                Log.d(TAG, "${spotifyPlaylists.size} playlists reçues de l'API")
+                Log.d(TAG, "${spotifyPlaylists.size} playlists received from API")
 
                 spotifyPlaylists.forEach { spotifyPlaylist ->
                     val musixId = libraryRepo.createPlaylist(spotifyPlaylist.name)
@@ -234,7 +338,7 @@ class SpotifyImportViewModel(
                     val tracks = try {
                         spotifyRepo.getPlaylistTracks(spotifyPlaylist.id)
                     } catch (e: Exception) {
-                        Log.w(TAG, "Erreur playlist \"${spotifyPlaylist.name}\": ${e.message}")
+                        Log.w(TAG, "Error playlist \"${spotifyPlaylist.name}\": ${e.message}")
                         emptyList()
                     }
 
@@ -255,9 +359,9 @@ class SpotifyImportViewModel(
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                Log.e(TAG, "Import API KO : ${e.javaClass.simpleName} — ${e.message}")
+                Log.e(TAG, "API import failed: ${e.javaClass.simpleName} — ${e.message}")
                 _importState.value = ImportState.Error(
-                    e.message ?: "Erreur inconnue lors de l'import",
+                    e.message ?: "Unknown import error",
                 )
             }
         }
@@ -268,7 +372,7 @@ class SpotifyImportViewModel(
         searchAndSave(query, onSuccess)
     }
 
-    // ── Recherche YouTube commune ─────────────────────────────────────────────
+    // ── Common YouTube search ─────────────────────────────────────────────────
 
     private suspend fun searchAndSave(query: String, onSuccess: suspend (Song) -> Unit) {
         if (query.isBlank()) return
@@ -276,6 +380,6 @@ class SpotifyImportViewModel(
             val results = youtubeRepo.search(query)
             val song    = results.firstOrNull() ?: return
             onSuccess(song)
-        } catch (_: Exception) { /* Titre ignoré — on continue */ }
+        } catch (_: Exception) { /* Track skipped — continue */ }
     }
 }

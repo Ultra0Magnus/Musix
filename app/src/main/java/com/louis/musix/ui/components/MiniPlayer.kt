@@ -34,12 +34,12 @@ import com.louis.musix.player.PlayerController
 import org.koin.compose.koinInject
 
 /**
- * Barre de lecture compacte affichée au-dessus de la BottomNavigation.
+ * Compact playback bar displayed above the BottomNavigation.
  *
- * Visible uniquement quand [PlayerControllerState.hasActiveMedia] est true
- * et qu'on n'est pas déjà sur l'écran Player complet.
+ * Visible only when [PlayerControllerState.hasActiveMedia] is true
+ * and the full player screen is not active.
  *
- * @param onTap  Navigue vers l'écran Player plein écran
+ * @param onTap  Navigates to the full-screen player.
  */
 @Composable
 fun MiniPlayer(
@@ -62,7 +62,7 @@ fun MiniPlayer(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            // ── Artwork ──────────────────────────────────────────────────────
+            // ── Artwork ───────────────────────────────────────────────────────
             AsyncImage(
                 model = state.artworkUri,
                 contentDescription = null,
@@ -73,7 +73,7 @@ fun MiniPlayer(
                     .background(MaterialTheme.colorScheme.surfaceVariant),
             )
 
-            // ── Titre + artiste ───────────────────────────────────────────────
+            // ── Title + artist ────────────────────────────────────────────────
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = state.title,
@@ -92,19 +92,19 @@ fun MiniPlayer(
                 )
             }
 
-            // ── Bouton Play / Pause ───────────────────────────────────────────
+            // ── Play / Pause button ───────────────────────────────────────────
             Spacer(Modifier.width(4.dp))
             IconButton(onClick = playerController::togglePlayPause) {
                 Icon(
                     imageVector = if (state.isPlaying) Icons.Outlined.Pause else Icons.Outlined.PlayArrow,
-                    contentDescription = if (state.isPlaying) "Pause" else "Lecture",
+                    contentDescription = if (state.isPlaying) "Pause" else "Play",
                     tint = MaterialTheme.colorScheme.onSurface,
                     modifier = Modifier.size(28.dp),
                 )
             }
         }
 
-        // ── Barre de progression (fine, en bas du mini-player) ────────────────
+        // ── Progress bar (thin, at the bottom of the mini player) ────────────
         if (state.durationMs > 0) {
             LinearProgressIndicator(
                 progress = {

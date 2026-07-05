@@ -5,9 +5,8 @@ import androidx.room.PrimaryKey
 import com.louis.musix.domain.model.Song
 
 /**
- * Cache local des métadonnées d'un morceau.
- * Clé primaire = videoId YouTube ("dQw4w9WgXcQ").
- * Référencé en FK par favorites, history et playlist_songs.
+ * Entité Room représentant un morceau.
+ * Mise en cache locale pour éviter les appels réseau répétés.
  */
 @Entity(tableName = "songs")
 data class SongEntity(
@@ -17,17 +16,31 @@ data class SongEntity(
     val thumbnailUrl: String,
     val durationSeconds: Long,
     val videoUrl: String,
+    // v0.9.1 - Offline mode
+    val isDownloaded: Boolean = false,
+    val localFilePath: String? = null,
 ) {
-    fun toDomain() = Song(id, title, artist, thumbnailUrl, durationSeconds, videoUrl)
+    fun toDomain() = Song(
+        id = id,
+        title = title,
+        artist = artist,
+        thumbnailUrl = thumbnailUrl,
+        durationSeconds = durationSeconds,
+        videoUrl = videoUrl,
+        isDownloaded = isDownloaded,
+        localFilePath = localFilePath,
+    )
 
     companion object {
-        fun fromDomain(s: Song) = SongEntity(
-            id              = s.id,
-            title           = s.title,
-            artist          = s.artist,
-            thumbnailUrl    = s.thumbnailUrl,
-            durationSeconds = s.durationSeconds,
-            videoUrl        = s.videoUrl,
+        fun fromDomain(song: Song) = SongEntity(
+            id = song.id,
+            title = song.title,
+            artist = song.artist,
+            thumbnailUrl = song.thumbnailUrl,
+            durationSeconds = song.durationSeconds,
+            videoUrl = song.videoUrl,
+            isDownloaded = song.isDownloaded,
+            localFilePath = song.localFilePath,
         )
     }
 }
