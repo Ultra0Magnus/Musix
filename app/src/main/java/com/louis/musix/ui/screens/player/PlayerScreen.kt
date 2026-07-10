@@ -1,7 +1,5 @@
 package com.louis.musix.ui.screens.player
 
-import android.graphics.drawable.BitmapDrawable
-import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -20,20 +18,16 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Bedtime
+import androidx.compose.material.icons.filled.DownloadDone
 import androidx.compose.material.icons.filled.Favorite
-import androidx.compose.material.icons.outlined.ArrowBackIosNew
 import androidx.compose.material.icons.outlined.Bedtime
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.DownloadForOffline
+import androidx.compose.material.icons.outlined.ExpandMore
 import androidx.compose.material.icons.outlined.FavoriteBorder
-import androidx.compose.material.icons.filled.DownloadDone
-import androidx.compose.material.icons.outlined.Pause
-import androidx.compose.material.icons.outlined.PlayArrow
 import androidx.compose.material.icons.outlined.QueueMusic
 import androidx.compose.material.icons.outlined.Repeat
 import androidx.compose.material.icons.outlined.RepeatOne
@@ -62,25 +56,19 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.palette.graphics.Palette
 import coil.compose.AsyncImage
-import coil.imageLoader
-import coil.request.ImageRequest
-import coil.request.SuccessResult
 import com.louis.musix.domain.model.Song
 import com.louis.musix.domain.model.formatDuration
 import com.louis.musix.player.RepeatMode
-import com.louis.musix.ui.components.SongRow
+import com.louis.musix.ui.components.OutlineSquareButton
+import com.louis.musix.ui.components.SquarePlayButton
 import kotlinx.coroutines.launch
 import org.koin.androidx.compose.koinViewModel
 
@@ -92,27 +80,8 @@ fun PlayerScreen(
 ) {
     val viewModel: PlayerViewModel = koinViewModel()
     val state by viewModel.uiState.collectAsStateWithLifecycle()
-    val context = LocalContext.current
 
-    // ── Artwork color gradient (artwork → background) ─────────────────────────
     val background = MaterialTheme.colorScheme.background
-    var dominantColor by remember { mutableStateOf(background) }
-    val animatedDominant by animateColorAsState(targetValue = dominantColor, label = "dominant")
-
-    LaunchedEffect(state.song?.thumbnailUrl) {
-        val url = state.song?.thumbnailUrl ?: return@LaunchedEffect
-        val request = ImageRequest.Builder(context).data(url).allowHardware(false).build()
-        val result  = context.imageLoader.execute(request)
-        if (result is SuccessResult) {
-            val bitmap = (result.drawable as? BitmapDrawable)?.bitmap ?: return@LaunchedEffect
-            Palette.from(bitmap).generate { palette ->
-                val rgb = palette?.darkVibrantSwatch?.rgb
-                    ?: palette?.darkMutedSwatch?.rgb
-                    ?: palette?.dominantSwatch?.rgb
-                if (rgb != null) dominantColor = Color(rgb)
-            }
-        }
-    }
 
     // ── Bottom sheets ─────────────────────────────────────────────────────────
     var showQueue  by remember { mutableStateOf(false) }
@@ -146,60 +115,71 @@ fun PlayerScreen(
         )
     }
 
-    // ── Main screen ───────────────────────────────────────────────────────────
+    // ── Main screen (flat béton background) ─────────────────────────────────────
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Brush.verticalGradient(listOf(animatedDominant.copy(alpha = 0.6f), background)))
+            .background(background)
             .padding(horizontal = 24.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Spacer(Modifier.height(16.dp))
 
+        // ── Top bar : ✕/▾  ·  EN LECTURE  ·  timer  ≡ ─────────────────────────
         Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            IconButton(onClick = onBack) {
-                Icon(Icons.Outlined.ArrowBackIosNew, "Back", tint = MaterialTheme.colorScheme.onBackground)
-            }
+            OutlineSquareButton(
+                icon = Icons.Outlined.ExpandMore,
+                contentDescription = "Close",
+                onClick = onBack,
+                size = 34.dp,
+            )
+            Spacer(Modifier.weight(1f))
+            Text(
+                text = "NOW PLAYING",
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
             Spacer(Modifier.weight(1f))
 
-            // Live sleep-timer countdown chip
-            val timerActive = state.sleepTimerEndMs != null || state.sleepTimerEndOfTrack
+            // Live sleep-timer countdown
             if (state.sleepTimerEndMs != null) {
-                var nowMs by remember { mutableStateOf(System.currentTimeMillis()) }
+                var nowMs by remember { mutableStateOf(0L) }
                 LaunchedEffect(state.sleepTimerEndMs) {
                     while (true) {
                         nowMs = System.currentTimeMillis()
                         kotlinx.coroutines.delay(1000)
                     }
                 }
-                val remaining = ((state.sleepTimerEndMs!! - nowMs) / 1000).coerceAtLeast(0)
-                Text(
-                    text = formatDuration(remaining),
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.primary,
-                )
+                val remaining = (((state.sleepTimerEndMs ?: 0L) - nowMs) / 1000).coerceAtLeast(0)
+                if (nowMs > 0L) {
+                    Text(
+                        text = formatDuration(remaining),
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.padding(end = 8.dp),
+                    )
+                }
             }
-            IconButton(onClick = { showSleepTimer = true }) {
-                Icon(
-                    imageVector = if (timerActive) Icons.Filled.Bedtime else Icons.Outlined.Bedtime,
-                    contentDescription = "Sleep timer",
-                    tint = if (timerActive) MaterialTheme.colorScheme.primary
-                           else MaterialTheme.colorScheme.onBackground,
-                )
-            }
+            OutlineSquareButton(
+                icon = if (state.sleepTimerEndMs != null || state.sleepTimerEndOfTrack)
+                    Icons.Filled.Bedtime else Icons.Outlined.Bedtime,
+                contentDescription = "Sleep timer",
+                onClick = { showSleepTimer = true },
+                size = 34.dp,
+                active = state.sleepTimerEndMs != null || state.sleepTimerEndOfTrack,
+            )
         }
 
         Spacer(Modifier.height(24.dp))
 
-        // Artwork
+        // ── Artwork (carré) ───────────────────────────────────────────────────
         Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .aspectRatio(1f)
-                .clip(RoundedCornerShape(16.dp))
                 .background(MaterialTheme.colorScheme.surfaceVariant),
             contentAlignment = Alignment.Center,
         ) {
@@ -219,53 +199,60 @@ fun PlayerScreen(
             }
         }
 
-        Spacer(Modifier.height(24.dp))
+        Spacer(Modifier.height(20.dp))
 
-        // Title + artist + favorite + download
-        Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = state.song?.title ?: "Loading...",
-                    style = MaterialTheme.typography.headlineSmall,
-                    color = MaterialTheme.colorScheme.onBackground,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-                Spacer(Modifier.height(4.dp))
-                val artistName = state.song?.artist ?: ""
-                Text(
-                    text = artistName,
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = if (artistName.isNotEmpty()) MaterialTheme.colorScheme.primary
-                            else MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.clickable(enabled = artistName.isNotEmpty()) {
-                        onArtistClick(artistName)
-                    },
-                )
-            }
-            
-            // Download Button
-            IconButton(onClick = viewModel::toggleDownload, enabled = state.song != null) {
-                val isDownloaded = state.song?.isDownloaded == true
-                Icon(
-                    imageVector = if (isDownloaded) Icons.Filled.DownloadDone else Icons.Outlined.DownloadForOffline,
-                    contentDescription = if (isDownloaded) "Remove download" else "Download",
-                    tint = if (isDownloaded) MaterialTheme.colorScheme.primary
-                           else MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.size(28.dp),
-                )
-            }
+        // ── Title (Anton) + artist ────────────────────────────────────────────
+        Column(modifier = Modifier.fillMaxWidth()) {
+            Text(
+                text = (state.song?.title ?: "Loading…").uppercase(),
+                style = MaterialTheme.typography.headlineLarge,
+                color = MaterialTheme.colorScheme.onBackground,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Spacer(Modifier.height(8.dp))
+            val artistName = state.song?.artist ?: ""
+            Text(
+                text = artistName.uppercase(),
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.clickable(enabled = artistName.isNotEmpty()) {
+                    onArtistClick(artistName)
+                },
+            )
+        }
 
-            // Favorite Button
-            IconButton(onClick = viewModel::toggleFavorite, enabled = state.song != null) {
-                Icon(
-                    imageVector = if (state.isFavorite) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
-                    contentDescription = if (state.isFavorite) "Remove from favorites" else "Add to favorites",
-                    tint = if (state.isFavorite) MaterialTheme.colorScheme.primary
-                           else MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.size(28.dp),
+        Spacer(Modifier.height(14.dp))
+
+        // ── Favorite | Download (btnout carrés) ───────────────────────────────
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            OutlineSquareButton(
+                icon = if (state.isFavorite) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
+                contentDescription = if (state.isFavorite) "Remove from favorites" else "Add to favorites",
+                onClick = { if (state.song != null) viewModel.toggleFavorite() },
+                size = 38.dp,
+                active = state.isFavorite,
+            )
+            val isDownloaded = state.song?.isDownloaded == true
+            OutlineSquareButton(
+                icon = if (isDownloaded) Icons.Filled.DownloadDone else Icons.Outlined.DownloadForOffline,
+                contentDescription = if (isDownloaded) "Remove download" else "Download",
+                onClick = { if (state.song != null) viewModel.toggleDownload() },
+                size = 38.dp,
+                active = isDownloaded,
+            )
+            Spacer(Modifier.weight(1f))
+            if (state.song?.isDownloaded == true) {
+                Text(
+                    text = "DOWNLOADED ✓",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
         }
@@ -278,7 +265,7 @@ fun PlayerScreen(
 
         Spacer(Modifier.height(16.dp))
 
-        // Progress slider
+        // ── Progress slider ───────────────────────────────────────────────────
         val progress = if (state.durationMs > 0)
             state.currentPositionMs.toFloat() / state.durationMs.toFloat() else 0f
 
@@ -287,9 +274,9 @@ fun PlayerScreen(
             onValueChange = { viewModel.seekTo((it * state.durationMs).toLong()) },
             modifier = Modifier.fillMaxWidth(),
             colors = SliderDefaults.colors(
-                thumbColor = MaterialTheme.colorScheme.primary,
+                thumbColor = MaterialTheme.colorScheme.inverseSurface,
                 activeTrackColor = MaterialTheme.colorScheme.primary,
-                inactiveTrackColor = MaterialTheme.colorScheme.surfaceVariant,
+                inactiveTrackColor = MaterialTheme.colorScheme.outline,
             ),
         )
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
@@ -306,18 +293,12 @@ fun PlayerScreen(
             IconButton(onClick = viewModel::skipToPrevious) {
                 Icon(Icons.Outlined.SkipPrevious, "Previous", modifier = Modifier.size(36.dp), tint = MaterialTheme.colorScheme.onSurface)
             }
-            IconButton(
+            SquarePlayButton(
+                isPlaying = state.isPlaying,
                 onClick = viewModel::togglePlayPause,
-                modifier = Modifier.size(72.dp).background(MaterialTheme.colorScheme.primary, CircleShape),
+                size = 64.dp,
                 enabled = !state.isLoadingAudio,
-            ) {
-                Icon(
-                    if (state.isPlaying) Icons.Outlined.Pause else Icons.Outlined.PlayArrow,
-                    if (state.isPlaying) "Pause" else "Play",
-                    tint = MaterialTheme.colorScheme.onPrimary,
-                    modifier = Modifier.size(36.dp),
-                )
-            }
+            )
             IconButton(onClick = viewModel::skipToNext) {
                 Icon(Icons.Outlined.SkipNext, "Next", modifier = Modifier.size(36.dp), tint = MaterialTheme.colorScheme.onSurface)
             }
@@ -331,7 +312,6 @@ fun PlayerScreen(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            // Shuffle
             IconButton(onClick = viewModel::toggleShuffle) {
                 Icon(
                     Icons.Outlined.Shuffle,
@@ -342,18 +322,18 @@ fun PlayerScreen(
                 )
             }
 
-            // Queue (remaining tracks)
             TextButton(onClick = { showQueue = true }) {
-                Icon(Icons.Outlined.QueueMusic, null, modifier = Modifier.size(20.dp))
+                Icon(Icons.Outlined.QueueMusic, null, modifier = Modifier.size(20.dp),
+                    tint = MaterialTheme.colorScheme.onSurface)
                 Spacer(Modifier.width(4.dp))
                 val remaining = (state.queueSize - state.currentQueueIndex - 1).coerceAtLeast(0)
                 Text(
-                    text = if (remaining > 0) "$remaining next" else "Queue empty",
+                    text = if (remaining > 0) "$remaining UP NEXT" else "QUEUE EMPTY",
                     style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurface,
                 )
             }
 
-            // Repeat
             IconButton(onClick = viewModel::cycleRepeatMode) {
                 Icon(
                     imageVector = if (state.repeatMode == RepeatMode.ONE) Icons.Outlined.RepeatOne else Icons.Outlined.Repeat,
@@ -372,11 +352,11 @@ fun PlayerScreen(
         ) {
             Text(
                 text = when (state.lyricsState) {
-                    is LyricsUiState.Synced       -> "Synced Lyrics ›"
-                    is LyricsUiState.Plain        -> "Lyrics ›"
-                    LyricsUiState.Instrumental    -> "Instrumental track"
-                    LyricsUiState.Loading         -> "Loading lyrics…"
-                    LyricsUiState.NotFound, LyricsUiState.Idle -> "Lyrics unavailable"
+                    is LyricsUiState.Synced       -> "SYNCED LYRICS ›"
+                    is LyricsUiState.Plain        -> "LYRICS ›"
+                    LyricsUiState.Instrumental    -> "INSTRUMENTAL TRACK"
+                    LyricsUiState.Loading         -> "LOADING LYRICS…"
+                    LyricsUiState.NotFound, LyricsUiState.Idle -> "LYRICS UNAVAILABLE"
                 },
                 style = MaterialTheme.typography.labelMedium,
                 color = when (state.lyricsState) {
@@ -390,8 +370,6 @@ fun PlayerScreen(
         Spacer(Modifier.height(8.dp))
     }
 }
-
-// ─── Queue Bottom Sheet ───────────────────────────────────────────────────────
 
 // ─── Sleep Timer Bottom Sheet ─────────────────────────────────────────────────
 
@@ -408,12 +386,12 @@ private fun SleepTimerBottomSheet(
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
         Column(modifier = Modifier.padding(bottom = 24.dp)) {
             Text(
-                text = "Sleep timer",
+                text = "SLEEP TIMER",
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
             )
-            HorizontalDivider()
+            HorizontalDivider(color = MaterialTheme.colorScheme.outline)
 
             listOf(15, 30, 45, 60).forEach { minutes ->
                 SleepTimerOption("$minutes minutes") { onPick(minutes) }
@@ -421,7 +399,7 @@ private fun SleepTimerBottomSheet(
             SleepTimerOption("End of current track") { onPickEndOfTrack() }
 
             if (isActive) {
-                HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+                HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp), color = MaterialTheme.colorScheme.outline)
                 SleepTimerOption("Turn off timer", tint = true) { onCancel() }
             }
         }
@@ -459,12 +437,12 @@ private fun QueueBottomSheet(
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
         Column(modifier = Modifier.padding(bottom = 24.dp)) {
             Text(
-                text = "Queue — ${queue.size} song${if (queue.size > 1) "s" else ""}",
+                text = "QUEUE — ${queue.size} TRACK${if (queue.size > 1) "S" else ""}",
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
             )
-            HorizontalDivider()
+            HorizontalDivider(color = MaterialTheme.colorScheme.outline)
 
             LazyColumn {
                 itemsIndexed(items = queue, key = { i, s -> "${i}_${s.id}" }) { index, song ->
@@ -473,24 +451,23 @@ private fun QueueBottomSheet(
                         modifier = Modifier
                             .fillMaxWidth()
                             .background(
-                                if (isCurrent) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f)
+                                if (isCurrent) MaterialTheme.colorScheme.surfaceVariant
                                 else Color.Transparent
                             )
-                            .padding(start = 16.dp, end = 4.dp, top = 4.dp, bottom = 4.dp),
+                            .padding(start = 16.dp, end = 4.dp, top = 8.dp, bottom = 8.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
                                 text = song.title,
-                                style = MaterialTheme.typography.bodyMedium,
-                                fontWeight = if (isCurrent) FontWeight.Bold else FontWeight.Normal,
+                                style = MaterialTheme.typography.titleMedium,
                                 color = if (isCurrent) MaterialTheme.colorScheme.primary
                                         else MaterialTheme.colorScheme.onSurface,
                                 maxLines = 1, overflow = TextOverflow.Ellipsis,
                             )
                             Text(
-                                text = song.artist,
-                                style = MaterialTheme.typography.bodySmall,
+                                text = song.artist.uppercase(),
+                                style = MaterialTheme.typography.labelMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 maxLines = 1, overflow = TextOverflow.Ellipsis,
                             )
@@ -559,9 +536,9 @@ private fun LyricsBottomSheet(
                     ) {
                         Text(
                             text = s.text,
-                            style = MaterialTheme.typography.bodyMedium,
+                            style = MaterialTheme.typography.bodyLarge,
                             color = MaterialTheme.colorScheme.onSurface,
-                            lineHeight = MaterialTheme.typography.bodyMedium.lineHeight * 1.4f,
+                            lineHeight = MaterialTheme.typography.bodyLarge.lineHeight * 1.4f,
                         )
                     }
                 }
@@ -571,18 +548,16 @@ private fun LyricsBottomSheet(
                     val listState = rememberLazyListState()
                     val scope = rememberCoroutineScope()
 
-                    // Current line index based on playback position
                     val currentLineIndex by remember(currentPositionMs, lines) {
                         derivedStateOf {
                             lines.indexOfLast { it.timeMs <= currentPositionMs }.coerceAtLeast(0)
                         }
                     }
 
-                    // Auto-scroll to current line
                     LaunchedEffect(currentLineIndex) {
                         scope.launch {
                             listState.animateScrollToItem(
-                                index  = (currentLineIndex - 2).coerceAtLeast(0),
+                                index = (currentLineIndex - 2).coerceAtLeast(0),
                             )
                         }
                     }
@@ -593,18 +568,29 @@ private fun LyricsBottomSheet(
                     ) {
                         itemsIndexed(lines) { index, line ->
                             val isCurrent = index == currentLineIndex
-                            Text(
-                                text = line.text,
-                                style = if (isCurrent) MaterialTheme.typography.bodyLarge
-                                        else MaterialTheme.typography.bodyMedium,
-                                fontWeight = if (isCurrent) FontWeight.Bold else FontWeight.Normal,
-                                color = if (isCurrent) MaterialTheme.colorScheme.primary
-                                        else MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(vertical = 6.dp),
-                                lineHeight = MaterialTheme.typography.bodyMedium.lineHeight * 1.3f,
-                            )
+                            if (isCurrent) {
+                                // Surligneur vert (« hl ») sur la ligne active
+                                Box(modifier = Modifier.padding(vertical = 6.dp)) {
+                                    Text(
+                                        text = line.text,
+                                        style = MaterialTheme.typography.bodyLarge,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = MaterialTheme.colorScheme.onPrimary,
+                                        modifier = Modifier
+                                            .background(MaterialTheme.colorScheme.primary)
+                                            .padding(horizontal = 6.dp, vertical = 2.dp),
+                                    )
+                                }
+                            } else {
+                                Text(
+                                    text = line.text,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(vertical = 6.dp),
+                                )
+                            }
                         }
                     }
                 }

@@ -42,6 +42,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.louis.musix.ui.components.inkButtonColors
 import org.koin.androidx.compose.koinViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -155,6 +156,7 @@ private fun IdleContent(
         Button(
             onClick  = onPickFiles,
             modifier = Modifier.fillMaxWidth(),
+            colors = inkButtonColors(),
         ) {
             Icon(
                 Icons.Outlined.FolderOpen,
@@ -300,7 +302,7 @@ private fun DoneContent(state: ImportState.Done, onBack: () -> Unit) {
             textAlign = TextAlign.Center,
         )
         Spacer(Modifier.height(8.dp))
-        Button(onClick = onBack, modifier = Modifier.fillMaxWidth()) {
+        Button(onClick = onBack, modifier = Modifier.fillMaxWidth(), colors = inkButtonColors()) {
             Text("Go to library")
         }
     }
@@ -333,7 +335,7 @@ private fun ErrorContent(state: ImportState.Error, viewModel: SpotifyImportViewM
             textAlign = TextAlign.Center,
         )
         Spacer(Modifier.height(8.dp))
-        Button(onClick = viewModel::retry, modifier = Modifier.fillMaxWidth()) {
+        Button(onClick = viewModel::retry, modifier = Modifier.fillMaxWidth(), colors = inkButtonColors()) {
             Text("Retry")
         }
     }

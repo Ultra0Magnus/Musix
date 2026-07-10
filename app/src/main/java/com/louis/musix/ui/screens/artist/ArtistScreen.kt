@@ -213,7 +213,6 @@ private fun AlbumCard(
             contentScale       = ContentScale.Crop,
             modifier           = Modifier
                 .size(130.dp)
-                .clip(RoundedCornerShape(8.dp))
                 .background(MaterialTheme.colorScheme.surfaceVariant),
         )
 

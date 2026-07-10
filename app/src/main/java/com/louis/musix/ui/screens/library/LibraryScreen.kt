@@ -34,8 +34,6 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SwipeToDismissBox
 import androidx.compose.material3.SwipeToDismissBoxValue
-import androidx.compose.material3.Tab
-import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberSwipeToDismissBoxState
@@ -47,11 +45,17 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.louis.musix.domain.model.Playlist
 import com.louis.musix.domain.model.Song
+import com.louis.musix.ui.components.ScreenTitle
 import com.louis.musix.ui.components.SongRow
+import com.louis.musix.ui.components.inkButtonColors
 import org.koin.androidx.compose.koinViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -91,11 +95,14 @@ fun LibraryScreen(
                 )
             },
             confirmButton = {
-                Button(onClick = {
-                    viewModel.createPlaylist(newPlaylistName)
-                    showCreateDialog = false
-                    newPlaylistName = ""
-                }) { Text("Create") }
+                Button(
+                    onClick = {
+                        viewModel.createPlaylist(newPlaylistName)
+                        showCreateDialog = false
+                        newPlaylistName = ""
+                    },
+                    colors = inkButtonColors(),
+                ) { Text("Create") }
             },
             dismissButton = {
                 TextButton(onClick = { showCreateDialog = false; newPlaylistName = "" }) {
@@ -118,10 +125,13 @@ fun LibraryScreen(
                 )
             },
             confirmButton = {
-                Button(onClick = {
-                    viewModel.renamePlaylist(target.id, renameText)
-                    renameTarget = null
-                }) { Text("Rename") }
+                Button(
+                    onClick = {
+                        viewModel.renamePlaylist(target.id, renameText)
+                        renameTarget = null
+                    },
+                    colors = inkButtonColors(),
+                ) { Text("Rename") }
             },
             dismissButton = {
                 TextButton(onClick = { renameTarget = null }) { Text("Cancel") }
@@ -134,7 +144,9 @@ fun LibraryScreen(
             if (selectedTab == 0) {
                 FloatingActionButton(
                     onClick = { showCreateDialog = true },
-                    containerColor = MaterialTheme.colorScheme.primary,
+                    containerColor = MaterialTheme.colorScheme.inverseSurface,
+                    contentColor = MaterialTheme.colorScheme.inverseOnSurface,
+                    shape = RectangleShape,
                 ) {
                     Icon(Icons.Outlined.Add, contentDescription = "New playlist")
                 }
@@ -146,15 +158,17 @@ fun LibraryScreen(
                 .fillMaxSize()
                 .padding(innerPadding),
         ) {
-            TabRow(selectedTabIndex = selectedTab) {
-                tabs.forEachIndexed { index, title ->
-                    Tab(
-                        selected = selectedTab == index,
-                        onClick = { selectedTab = index },
-                        text = { Text(title) },
-                    )
-                }
-            }
+            ScreenTitle(
+                text = "Library",
+                style = MaterialTheme.typography.headlineLarge,
+                modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 14.dp),
+            )
+
+            LibTabs(
+                tabs = tabs,
+                selected = selectedTab,
+                onSelect = { selectedTab = it },
+            )
 
             when (selectedTab) {
                 0 -> PlaylistsTab(
@@ -170,6 +184,46 @@ fun LibraryScreen(
             }
         }
     }
+}
+
+// ─── Library tabs (soulignement vert, angles droits) ──────────────────────────
+
+@Composable
+private fun LibTabs(
+    tabs: List<String>,
+    selected: Int,
+    onSelect: (Int) -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp),
+        horizontalArrangement = Arrangement.spacedBy(20.dp),
+    ) {
+        tabs.forEachIndexed { index, title ->
+            val isSel = index == selected
+            val accent = MaterialTheme.colorScheme.primary
+            Text(
+                text = title.uppercase(),
+                style = MaterialTheme.typography.labelLarge,
+                color = if (isSel) MaterialTheme.colorScheme.onSurface
+                        else MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier
+                    .clickable { onSelect(index) }
+                    .padding(vertical = 12.dp)
+                    .then(
+                        if (isSel) Modifier.drawBehind {
+                            drawRect(
+                                color = accent,
+                                topLeft = Offset(0f, size.height + 2.dp.toPx()),
+                                size = Size(size.width, 2.dp.toPx()),
+                            )
+                        } else Modifier
+                    ),
+            )
+        }
+    }
+    HorizontalDivider(color = MaterialTheme.colorScheme.outline)
 }
 
 // ─── Playlists Tab ────────────────────────────────────────────────────────────
@@ -258,12 +312,12 @@ private fun PlaylistRow(
         ) {
             Text(
                 text = playlist.name,
-                style = MaterialTheme.typography.bodyLarge,
+                style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.onSurface,
             )
             Text(
-                text = "${playlist.songCount} song${if (playlist.songCount > 1) "s" else ""}",
-                style = MaterialTheme.typography.bodySmall,
+                text = "${playlist.songCount} TRACK${if (playlist.songCount > 1) "S" else ""}".uppercase(),
+                style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
