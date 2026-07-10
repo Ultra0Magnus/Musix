@@ -1,7 +1,9 @@
 package com.louis.musix.ui.screens.search
 
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -48,11 +50,11 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.louis.musix.data.repo.LibraryRepository
 import com.louis.musix.domain.model.Playlist
 import com.louis.musix.domain.model.Song
-import org.koin.compose.koinInject
 import com.louis.musix.player.PlayerController
+import com.louis.musix.ui.components.ScreenTitle
+import com.louis.musix.ui.components.SectionLabel
 import com.louis.musix.ui.components.SongRow
 import com.louis.musix.domain.util.NetworkMonitor
-import org.koin.compose.koinInject
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import org.koin.androidx.compose.koinViewModel
@@ -199,6 +201,13 @@ fun SearchScreen(
 
     Column(modifier = Modifier.fillMaxSize()) {
 
+        // Screen title
+        ScreenTitle(
+            text = "Search",
+            style = MaterialTheme.typography.headlineLarge,
+            modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 14.dp),
+        )
+
         // Search bar
         OutlinedTextField(
             value = query,
@@ -287,6 +296,22 @@ fun SearchScreen(
 
             is SearchUiState.Success -> {
                 LazyColumn(modifier = Modifier.fillMaxSize()) {
+                    item {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(start = 16.dp, end = 16.dp, top = 22.dp, bottom = 10.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.Bottom,
+                        ) {
+                            SectionLabel("Results")
+                            Text(
+                                text = "${state.songs.size} TRACKS",
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
                     items(items = state.songs, key = { it.id }) { song ->
                         SongRow(
                             song          = song,

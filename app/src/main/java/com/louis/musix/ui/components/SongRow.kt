@@ -1,5 +1,6 @@
 package com.louis.musix.ui.components
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -9,7 +10,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.MoreVert
 import androidx.compose.material3.Icon
@@ -19,9 +19,9 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import com.louis.musix.domain.model.Song
@@ -42,12 +42,13 @@ fun SongRow(
     modifier: Modifier = Modifier,
     onMoreClick: ((Song) -> Unit)? = null,
     onArtistClick: ((String) -> Unit)? = null,
+    horizontalPadding: Dp = 16.dp,
 ) {
     Row(
         modifier = modifier
             .fillMaxWidth()
             .clickable { onClick(song) }
-            .padding(start = 16.dp, end = if (onMoreClick != null) 4.dp else 16.dp, top = 8.dp, bottom = 8.dp),
+            .padding(start = horizontalPadding, end = if (onMoreClick != null) 4.dp else horizontalPadding, top = 8.dp, bottom = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         // Thumbnail
@@ -57,7 +58,7 @@ fun SongRow(
             contentScale = ContentScale.Crop,
             modifier = Modifier
                 .size(56.dp)
-                .clip(RoundedCornerShape(6.dp)),
+                .background(MaterialTheme.colorScheme.surfaceVariant),
         )
 
         Spacer(modifier = Modifier.width(12.dp))
@@ -66,15 +67,15 @@ fun SongRow(
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = song.title,
-                style = MaterialTheme.typography.bodyLarge,
+                style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.onSurface,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
-            Spacer(modifier = Modifier.height(2.dp))
+            Spacer(modifier = Modifier.height(3.dp))
             Text(
-                text = song.artist,
-                style = MaterialTheme.typography.bodyMedium,
+                text = song.artist.uppercase(),
+                style = MaterialTheme.typography.labelMedium,
                 color = if (onArtistClick != null)
                     MaterialTheme.colorScheme.primary
                 else

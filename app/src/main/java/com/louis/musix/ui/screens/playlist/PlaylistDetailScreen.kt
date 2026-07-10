@@ -40,6 +40,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.louis.musix.domain.model.Song
 import com.louis.musix.ui.components.SongRow
+import com.louis.musix.ui.components.inkButtonColors
 import org.koin.androidx.compose.koinViewModel
 import org.koin.core.parameter.parametersOf
 import sh.calvin.reorderable.ReorderableItem
@@ -93,6 +94,7 @@ fun PlaylistDetailScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 16.dp, vertical = 8.dp),
+                    colors = inkButtonColors(),
                 ) {
                     Icon(Icons.Outlined.PlayArrow, contentDescription = null)
                     Spacer(Modifier.padding(horizontal = 4.dp))
