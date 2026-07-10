@@ -23,7 +23,7 @@ import androidx.compose.ui.unit.dp
 @Composable
 fun ShimmerBox(
     modifier: Modifier = Modifier,
-    cornerRadius: Dp = 8.dp,
+    cornerRadius: Dp = 0.dp,
 ) {
     val transition = rememberInfiniteTransition(label = "shimmer")
     val alpha by transition.animateFloat(

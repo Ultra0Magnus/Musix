@@ -11,20 +11,12 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.Pause
-import androidx.compose.material.icons.outlined.PlayArrow
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -52,15 +44,23 @@ fun MiniPlayer(
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .background(MaterialTheme.colorScheme.surfaceContainer)
+            .background(MaterialTheme.colorScheme.surface)
             .clickable(onClick = onTap),
     ) {
+        // ── Progress bar (thin, green fill, at the top edge) ─────────────────
+        if (state.durationMs > 0) {
+            ThinProgressBar(
+                fraction = (state.currentPositionMs.toFloat() / state.durationMs),
+                height = 2.dp,
+            )
+        }
+
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 12.dp, vertical = 8.dp),
+                .padding(horizontal = 16.dp, vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            horizontalArrangement = Arrangement.spacedBy(13.dp),
         ) {
             // ── Artwork ───────────────────────────────────────────────────────
             AsyncImage(
@@ -68,8 +68,7 @@ fun MiniPlayer(
                 contentDescription = null,
                 contentScale = ContentScale.Crop,
                 modifier = Modifier
-                    .size(44.dp)
-                    .clip(RoundedCornerShape(6.dp))
+                    .size(40.dp)
                     .background(MaterialTheme.colorScheme.surfaceVariant),
             )
 
@@ -77,42 +76,27 @@ fun MiniPlayer(
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = state.title,
-                    style = MaterialTheme.typography.bodyMedium,
+                    style = MaterialTheme.typography.titleMedium,
                     color = MaterialTheme.colorScheme.onSurface,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
-                Spacer(Modifier.height(2.dp))
+                Spacer(Modifier.height(3.dp))
                 Text(
-                    text = state.artist,
-                    style = MaterialTheme.typography.bodySmall,
+                    text = state.artist.uppercase(),
+                    style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
             }
 
-            // ── Play / Pause button ───────────────────────────────────────────
+            // ── Play / Pause button (square, ink) ─────────────────────────────
             Spacer(Modifier.width(4.dp))
-            IconButton(onClick = playerController::togglePlayPause) {
-                Icon(
-                    imageVector = if (state.isPlaying) Icons.Outlined.Pause else Icons.Outlined.PlayArrow,
-                    contentDescription = if (state.isPlaying) "Pause" else "Play",
-                    tint = MaterialTheme.colorScheme.onSurface,
-                    modifier = Modifier.size(28.dp),
-                )
-            }
-        }
-
-        // ── Progress bar (thin, at the bottom of the mini player) ────────────
-        if (state.durationMs > 0) {
-            LinearProgressIndicator(
-                progress = {
-                    (state.currentPositionMs.toFloat() / state.durationMs).coerceIn(0f, 1f)
-                },
-                modifier = Modifier.fillMaxWidth().height(2.dp),
-                color = MaterialTheme.colorScheme.primary,
-                trackColor = MaterialTheme.colorScheme.surfaceVariant,
+            SquarePlayButton(
+                isPlaying = state.isPlaying,
+                onClick = playerController::togglePlayPause,
+                size = 40.dp,
             )
         }
     }
