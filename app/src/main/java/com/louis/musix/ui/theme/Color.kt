@@ -2,20 +2,19 @@ package com.louis.musix.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
-// Palette sombre type Spotify / YouTube Music
-val MusixBlack          = Color(0xFF000000)
-val MusixSurface        = Color(0xFF121212)
-val MusixSurfaceVar     = Color(0xFF1E1E1E)
-val MusixSurfaceHigh    = Color(0xFF2A2A2A)
-val MusixOnSurface      = Color(0xFFEFEFEF)
-val MusixOnSurfaceMuted = Color(0xFFB3B3B3)
-val MusixDivider        = Color(0xFF2A2A2A)
+// Palette « Affiche » — béton chaud, jamais noir pur pour le fond.
+val MusixBeton          = Color(0xFF151513) // fond béton
+val MusixSurface        = Color(0xFF232320) // surfaces, placeholder pochette
+val MusixBloc           = Color(0xFF000000) // « bloc » noir tranché (carte Reprendre)
+val MusixInk            = Color(0xFFF3F1EA) // encre
+val MusixMuted          = Color(0xFF928E82) // métadonnée
+val MusixDivider        = Color(0x29F3F1EA) // filet / bordure de ligne — encre @ 16 %
 
-// Accent principal — vert Spotify (modifiable)
+// Accent — vert #1DB954 : filet / soulignement / surligneur / fill de progression uniquement.
 val MusixAccent         = Color(0xFF1DB954)
-val MusixAccentOn       = Color(0xFF000000)
+val MusixAccentOn       = Color(0xFF08150C) // texte sur surligneur vert
 
-// Accent secondaire — rouge YT Music
+// Accent secondaire (peu utilisé)
 val MusixAccentAlt      = Color(0xFFFF0040)
 
 val MusixError          = Color(0xFFCF6679)

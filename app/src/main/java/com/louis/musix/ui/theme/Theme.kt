@@ -14,19 +14,22 @@ private val MusixDarkColorScheme = darkColorScheme(
     onPrimary         = MusixAccentOn,
     secondary         = MusixAccentAlt,
     onSecondary       = MusixAccentOn,
-    background        = MusixBlack,
-    onBackground      = MusixOnSurface,
+    background        = MusixBeton,
+    onBackground      = MusixInk,
     surface           = MusixSurface,
-    onSurface         = MusixOnSurface,
-    surfaceVariant    = MusixSurfaceVar,
-    onSurfaceVariant  = MusixOnSurfaceMuted,
-    surfaceContainer  = MusixSurfaceHigh,
+    onSurface         = MusixInk,
+    surfaceVariant    = MusixSurface,
+    onSurfaceVariant  = MusixMuted,
+    surfaceContainer  = MusixBloc,
+    inverseSurface    = MusixInk,      // fond des boutons pleins « encre » (play, FAB)
+    inverseOnSurface  = MusixBeton,    // icône/texte sur bouton encre
     error             = MusixError,
     outline           = MusixDivider,
 )
 
 /**
- * Thème de l'application — sombre forcé (musical app, UX classique).
+ * Thème de l'application — direction « Affiche », sombre forcé.
+ * Béton chaud, angles droits (MusixShapes), typo Anton + Barlow Condensed.
  */
 @Composable
 fun MusixTheme(content: @Composable () -> Unit) {
@@ -47,6 +50,7 @@ fun MusixTheme(content: @Composable () -> Unit) {
     MaterialTheme(
         colorScheme = colorScheme,
         typography  = MusixTypography,
+        shapes      = MusixShapes,
         content     = content
     )
 }
