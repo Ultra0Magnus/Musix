@@ -59,7 +59,14 @@ fun MusixNavHost(
         composable(Routes.Home.route) {
             HomeScreen(
                 onSongClick = { song -> playSong(song) },
-                onSettingsClick = { navController.navigate(Routes.Settings.route) }
+                onSettingsClick = { navController.navigate(Routes.Settings.route) },
+                onSeeAllFavorites = {
+                    navController.navigate(Routes.Library.route) {
+                        popUpTo(navController.graph.startDestinationId) { saveState = true }
+                        launchSingleTop = true
+                        restoreState = true
+                    }
+                },
             )
         }
 

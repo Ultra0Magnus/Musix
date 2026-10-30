@@ -10,26 +10,37 @@ import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 
 private val MusixDarkColorScheme = darkColorScheme(
-    primary           = MusixAccent,
-    onPrimary         = MusixAccentOn,
-    secondary         = MusixAccentAlt,
-    onSecondary       = MusixAccentOn,
-    background        = MusixBeton,
-    onBackground      = MusixInk,
-    surface           = MusixSurface,
-    onSurface         = MusixInk,
-    surfaceVariant    = MusixSurface,
-    onSurfaceVariant  = MusixMuted,
-    surfaceContainer  = MusixBloc,
-    inverseSurface    = MusixInk,      // fond des boutons pleins « encre » (play, FAB)
-    inverseOnSurface  = MusixBeton,    // icône/texte sur bouton encre
-    error             = MusixError,
-    outline           = MusixDivider,
+    primary              = SillonAccent,
+    onPrimary            = SillonOnAccent,
+    primaryContainer     = SillonAccent,
+    onPrimaryContainer   = SillonOnAccent,
+    secondary            = SillonAccent,
+    onSecondary          = SillonOnAccent,
+    tertiary             = SillonLabels[2],
+    background           = SillonBackground,
+    onBackground         = SillonInk,
+    surface              = SillonSurface,
+    onSurface            = SillonInk,
+    surfaceVariant       = SillonSurface2,
+    onSurfaceVariant     = SillonMuted,
+    surfaceContainerLowest  = SillonBackground,
+    surfaceContainerLow     = SillonSurface,
+    surfaceContainer        = SillonSurface,
+    surfaceContainerHigh    = SillonSurface,
+    surfaceContainerHighest = SillonSurface2,
+    surfaceTint          = SillonSurface,
+    inverseSurface       = SillonInk,        // pilule crème (mini-lecteur, chip actif)
+    inverseOnSurface     = SillonBackground,
+    error                = SillonDanger,
+    onError              = SillonOnAccent,
+    outline              = SillonLine,
+    outlineVariant       = SillonLine,
+    scrim                = SillonGrooveDark,
 )
 
 /**
- * Thème de l'application — direction « Affiche », sombre forcé.
- * Béton chaud, angles droits (MusixShapes), typo Anton + Barlow Condensed.
+ * Thème de l'application — direction « Sillon », sombre forcé.
+ * Sang de bœuf + crème + moutarde, tout rond (MusixShapes), Fraunces + Figtree.
  */
 @Composable
 fun MusixTheme(content: @Composable () -> Unit) {

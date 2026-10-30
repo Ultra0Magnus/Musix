@@ -19,15 +19,18 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -36,11 +39,13 @@ import androidx.navigation.compose.rememberNavController
 import com.louis.musix.data.spotify.SpotifyAuthManager
 import com.louis.musix.domain.util.NetworkMonitor
 import com.louis.musix.player.PlayerController
+import com.louis.musix.ui.components.LocalCurrentSongId
 import com.louis.musix.ui.components.MiniPlayer
 import com.louis.musix.ui.navigation.MusixBottomBar
 import com.louis.musix.ui.navigation.MusixNavHost
 import com.louis.musix.ui.navigation.Routes
 import com.louis.musix.ui.theme.MusixTheme
+import com.louis.musix.ui.theme.PillShape
 import org.koin.android.ext.android.inject
 import org.koin.compose.KoinContext
 import org.koin.compose.koinInject
@@ -114,11 +119,13 @@ private fun MusixContent() {
     val showBottomBar = currentRoute != Routes.Player.route &&
                         currentRoute != Routes.SpotifyImport.route
 
+    CompositionLocalProvider(LocalCurrentSongId provides playerState.currentSong?.id) {
     Scaffold(
         modifier = Modifier.fillMaxSize(),
+        containerColor = MaterialTheme.colorScheme.background,
         bottomBar = {
             if (showBottomBar) {
-                Column {
+                Column(Modifier.navigationBarsPadding()) {
                     // ── Offline Banner ──────────────────────────────────────────
                     AnimatedVisibility(
                         visible = !isOnline,
@@ -128,8 +135,10 @@ private fun MusixContent() {
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
+                                .padding(start = 12.dp, end = 12.dp, bottom = 8.dp)
+                                .clip(PillShape)
                                 .background(MaterialTheme.colorScheme.error)
-                                .padding(vertical = 4.dp),
+                                .padding(horizontal = 16.dp, vertical = 8.dp),
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
@@ -174,5 +183,6 @@ private fun MusixContent() {
             navController = navController,
             modifier = Modifier.padding(innerPadding)
         )
+    }
     }
 }
