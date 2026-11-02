@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Version monochrome (icônes à thème, Android 13+) : silhouette du disque,
+    étiquette détourée par un anneau, trou central. Seul l'alpha compte.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <group
+        android:pivotX="54"
+        android:pivotY="54"
+        android:scaleX="0.8"
+        android:scaleY="0.8">
+        <!-- Disque : sillons et étiquette évidés (evenOdd alterne plein / vide) -->
+        <path
+            android:fillColor="#FFFFFFFF"
+            android:fillType="evenOdd"
+            android:pathData="M24,54a30,30 0,1 0,60 0a30,30 0,1 0,-60 0z
+                M30.5,54a23.5,23.5 0,1 0,47 0a23.5,23.5 0,1 0,-47 0z
+                M31.5,54a22.5,22.5 0,1 0,45 0a22.5,22.5 0,1 0,-45 0z
+                M36.5,54a17.5,17.5 0,1 0,35 0a17.5,17.5 0,1 0,-35 0z
+                M37.5,54a16.5,16.5 0,1 0,33 0a16.5,16.5 0,1 0,-33 0z
+                M43,54a11,11 0,1 0,22 0a11,11 0,1 0,-22 0z" />
+        <!-- Étiquette avec trou central -->
+        <path
+            android:fillColor="#FFFFFFFF"
+            android:fillType="evenOdd"
+            android:pathData="M45.5,54a8.5,8.5 0,1 0,17 0a8.5,8.5 0,1 0,-17 0z
+                M52.2,54a1.8,1.8 0,1 0,3.6 0a1.8,1.8 0,1 0,-3.6 0z" />
+    </group>
+</vector>

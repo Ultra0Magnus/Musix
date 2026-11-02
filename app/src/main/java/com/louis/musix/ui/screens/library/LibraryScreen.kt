@@ -1,5 +1,6 @@
 package com.louis.musix.ui.screens.library
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -7,31 +8,31 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Add
-import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.CloudSync
 import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.material.icons.outlined.DeleteSweep
 import androidx.compose.material.icons.outlined.Edit
-import androidx.compose.material.icons.outlined.PlaylistPlay
+import androidx.compose.material.icons.outlined.MoreHoriz
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FloatingActionButton
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SwipeToDismissBox
 import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.Text
@@ -39,26 +40,36 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.graphics.RectangleShape
+import androidx.compose.ui.graphics.PathEffect
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.louis.musix.domain.model.Playlist
 import com.louis.musix.domain.model.Song
+import com.louis.musix.ui.components.PillButton
+import com.louis.musix.ui.components.PillTabs
+import com.louis.musix.ui.components.PillTextField
+import com.louis.musix.ui.components.RoundIconButton
 import com.louis.musix.ui.components.ScreenTitle
+import com.louis.musix.ui.components.SheetRow
+import com.louis.musix.ui.components.SillonBottomSheet
 import com.louis.musix.ui.components.SongRow
-import com.louis.musix.ui.components.inkButtonColors
+import com.louis.musix.ui.components.VinylDisc
+import com.louis.musix.ui.components.accentButtonColors
+import com.louis.musix.ui.theme.PillShape
+import com.louis.musix.ui.theme.SillonOnAccent
 import org.koin.androidx.compose.koinViewModel
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LibraryScreen(
     onPlaylistClick: (Long) -> Unit = {},
@@ -69,9 +80,10 @@ fun LibraryScreen(
     val playlists by viewModel.playlists.collectAsStateWithLifecycle()
     val favorites by viewModel.filteredFavorites.collectAsStateWithLifecycle()
     val history by viewModel.filteredHistory.collectAsStateWithLifecycle()
+    val downloaded by viewModel.downloaded.collectAsStateWithLifecycle()
     val query by viewModel.query.collectAsStateWithLifecycle()
 
-    var selectedTab by remember { mutableIntStateOf(0) }
+    var selectedTab by rememberSaveable { mutableStateOf(0) }
     val tabs = listOf("Playlists", "Favorites", "History", "Downloads")
 
     // Create playlist dialog
@@ -82,259 +94,301 @@ fun LibraryScreen(
     var renameTarget by remember { mutableStateOf<Playlist?>(null) }
     var renameText by remember { mutableStateOf("") }
 
+    // Playlist options sheet
+    var optionsTarget by remember { mutableStateOf<Playlist?>(null) }
+
     if (showCreateDialog) {
-        AlertDialog(
-            onDismissRequest = { showCreateDialog = false; newPlaylistName = "" },
-            title = { Text("New playlist") },
-            text = {
-                OutlinedTextField(
-                    value = newPlaylistName,
-                    onValueChange = { newPlaylistName = it },
-                    label = { Text("Playlist name") },
-                    singleLine = true,
-                )
+        PlaylistNameDialog(
+            title = "New playlist",
+            confirmLabel = "Create",
+            value = newPlaylistName,
+            onValueChange = { newPlaylistName = it },
+            onConfirm = {
+                viewModel.createPlaylist(newPlaylistName)
+                showCreateDialog = false
+                newPlaylistName = ""
             },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        viewModel.createPlaylist(newPlaylistName)
-                        showCreateDialog = false
-                        newPlaylistName = ""
-                    },
-                    colors = inkButtonColors(),
-                ) { Text("Create") }
-            },
-            dismissButton = {
-                TextButton(onClick = { showCreateDialog = false; newPlaylistName = "" }) {
-                    Text("Cancel")
-                }
-            },
+            onDismiss = { showCreateDialog = false; newPlaylistName = "" },
         )
     }
 
     renameTarget?.let { target ->
-        AlertDialog(
-            onDismissRequest = { renameTarget = null },
-            title = { Text("Rename playlist") },
-            text = {
-                OutlinedTextField(
-                    value = renameText,
-                    onValueChange = { renameText = it },
-                    label = { Text("Playlist name") },
-                    singleLine = true,
-                )
+        PlaylistNameDialog(
+            title = "Rename playlist",
+            confirmLabel = "Rename",
+            value = renameText,
+            onValueChange = { renameText = it },
+            onConfirm = {
+                viewModel.renamePlaylist(target.id, renameText)
+                renameTarget = null
             },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        viewModel.renamePlaylist(target.id, renameText)
-                        renameTarget = null
-                    },
-                    colors = inkButtonColors(),
-                ) { Text("Rename") }
-            },
-            dismissButton = {
-                TextButton(onClick = { renameTarget = null }) { Text("Cancel") }
-            },
+            onDismiss = { renameTarget = null },
         )
     }
 
-    Scaffold(
-        floatingActionButton = {
-            if (selectedTab == 0) {
-                FloatingActionButton(
-                    onClick = { showCreateDialog = true },
-                    containerColor = MaterialTheme.colorScheme.inverseSurface,
-                    contentColor = MaterialTheme.colorScheme.inverseOnSurface,
-                    shape = RectangleShape,
-                ) {
-                    Icon(Icons.Outlined.Add, contentDescription = "New playlist")
-                }
-            }
-        },
-    ) { innerPadding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding),
+    optionsTarget?.let { target ->
+        SillonBottomSheet(
+            onDismiss = { optionsTarget = null },
+            title = target.name,
+            subtitle = trackCount(target.songCount),
+            skipPartiallyExpanded = true,
         ) {
-            ScreenTitle(
-                text = "Library",
-                style = MaterialTheme.typography.headlineLarge,
-                modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 14.dp),
-            )
+            SheetRow(label = "Rename", icon = Icons.Outlined.Edit, onClick = {
+                renameTarget = target
+                renameText = target.name
+                optionsTarget = null
+            })
+            SheetRow(label = "Delete playlist", icon = Icons.Outlined.Delete, danger = true, onClick = {
+                viewModel.deletePlaylist(target.id)
+                optionsTarget = null
+            })
+        }
+    }
 
-            LibTabs(
-                tabs = tabs,
-                selected = selectedTab,
-                onSelect = { selectedTab = it },
+    Column(modifier = Modifier.fillMaxSize()) {
+        // ── En-tête : « Library » + pilule Spotify ────────────────────────────
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(start = 20.dp, end = 16.dp, top = 12.dp, bottom = 14.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            ScreenTitle(text = "Library", modifier = Modifier.weight(1f))
+            PillButton(
+                text = "Spotify",
+                icon = Icons.Outlined.CloudSync,
+                onClick = onSpotifyImportClick,
+                outlined = true,
+                modifier = Modifier.height(40.dp),
             )
+        }
 
-            when (selectedTab) {
-                0 -> PlaylistsTab(
-                    playlists       = playlists,
-                    onPlaylistClick = onPlaylistClick,
-                    onDelete        = viewModel::deletePlaylist,
-                    onRenameRequest = { playlist -> renameTarget = playlist; renameText = playlist.name },
-                    onSpotifyImport = onSpotifyImportClick,
-                )
-                1 -> FavoritesTab(favorites, query, viewModel::onQueryChange, onSongClick, viewModel::removeFavorite)
-                2 -> HistoryTab(history, query, viewModel::onQueryChange, onSongClick, viewModel::clearHistory)
-                3 -> DownloadsTab(viewModel.downloaded.collectAsStateWithLifecycle().value, onSongClick, viewModel::removeDownload)
-            }
+        PillTabs(
+            tabs = tabs,
+            selectedIndex = selectedTab,
+            onSelect = { selectedTab = it },
+        )
+
+        Spacer(Modifier.height(8.dp))
+
+        when (selectedTab) {
+            0 -> PlaylistsTab(
+                playlists       = playlists,
+                onPlaylistClick = onPlaylistClick,
+                onOptions       = { optionsTarget = it },
+                onCreate        = { showCreateDialog = true },
+            )
+            1 -> FavoritesTab(favorites, query, viewModel::onQueryChange, onSongClick, viewModel::removeFavorite)
+            2 -> HistoryTab(history, query, viewModel::onQueryChange, onSongClick, viewModel::clearHistory)
+            3 -> DownloadsTab(downloaded, onSongClick, viewModel::removeDownload)
         }
     }
 }
 
-// ─── Library tabs (soulignement vert, angles droits) ──────────────────────────
+private fun trackCount(n: Int) = "$n track${if (n > 1) "s" else ""}"
+
+// ─── Dialog ───────────────────────────────────────────────────────────────────
 
 @Composable
-private fun LibTabs(
-    tabs: List<String>,
-    selected: Int,
-    onSelect: (Int) -> Unit,
+private fun PlaylistNameDialog(
+    title: String,
+    confirmLabel: String,
+    value: String,
+    onValueChange: (String) -> Unit,
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit,
 ) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp),
-        horizontalArrangement = Arrangement.spacedBy(20.dp),
-    ) {
-        tabs.forEachIndexed { index, title ->
-            val isSel = index == selected
-            val accent = MaterialTheme.colorScheme.primary
-            Text(
-                text = title.uppercase(),
-                style = MaterialTheme.typography.labelLarge,
-                color = if (isSel) MaterialTheme.colorScheme.onSurface
-                        else MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier
-                    .clickable { onSelect(index) }
-                    .padding(vertical = 12.dp)
-                    .then(
-                        if (isSel) Modifier.drawBehind {
-                            drawRect(
-                                color = accent,
-                                topLeft = Offset(0f, size.height + 2.dp.toPx()),
-                                size = Size(size.width, 2.dp.toPx()),
-                            )
-                        } else Modifier
-                    ),
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = MaterialTheme.colorScheme.surface,
+        title = { Text(title, style = MaterialTheme.typography.headlineSmall) },
+        text = {
+            PillTextField(
+                value = value,
+                onValueChange = onValueChange,
+                placeholder = "Playlist name",
+                containerColor = MaterialTheme.colorScheme.surfaceVariant,
             )
-        }
-    }
-    HorizontalDivider(color = MaterialTheme.colorScheme.outline)
+        },
+        confirmButton = {
+            Button(
+                onClick = onConfirm,
+                enabled = value.isNotBlank(),
+                colors = accentButtonColors(),
+                shape = PillShape,
+            ) { Text(confirmLabel) }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel", color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        },
+    )
 }
 
-// ─── Playlists Tab ────────────────────────────────────────────────────────────
+// ─── Playlists Tab : grille de disques ───────────────────────────────────────
 
 @Composable
 private fun PlaylistsTab(
     playlists: List<Playlist>,
     onPlaylistClick: (Long) -> Unit,
-    onDelete: (Long) -> Unit,
-    onRenameRequest: (Playlist) -> Unit,
-    onSpotifyImport: () -> Unit,
+    onOptions: (Playlist) -> Unit,
+    onCreate: () -> Unit,
 ) {
-    Column(modifier = Modifier.fillMaxSize()) {
-        // Spotify import button at the top of the tab
-        Row(
+    LazyVerticalGrid(
+        columns = GridCells.Fixed(2),
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 8.dp, bottom = 24.dp),
+        horizontalArrangement = Arrangement.spacedBy(16.dp),
+        verticalArrangement = Arrangement.spacedBy(20.dp),
+    ) {
+        items(playlists, key = { it.id }) { playlist ->
+            PlaylistTile(
+                playlist = playlist,
+                onClick = { onPlaylistClick(playlist.id) },
+                onOptions = { onOptions(playlist) },
+            )
+        }
+        item(key = "new") { NewPlaylistTile(onClick = onCreate) }
+    }
+}
+
+@Composable
+private fun PlaylistTile(
+    playlist: Playlist,
+    onClick: () -> Unit,
+    onOptions: () -> Unit,
+) {
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        VinylDisc(
+            artworkUrl = null,
+            labelKey = playlist.name,
+            labelFraction = 0.46f,
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 4.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(4.dp),
-        ) {
-            Icon(
-                Icons.Outlined.CloudSync,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(18.dp),
-            )
-            TextButton(onClick = onSpotifyImport) {
-                Text("Import from Spotify")
-            }
-        }
-        HorizontalDivider(
-            modifier = Modifier.padding(horizontal = 16.dp),
-            color = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f),
-        )
-
-        if (playlists.isEmpty()) {
-            EmptyState("No playlists\nTap + to create one")
-        } else {
-            LazyColumn(
-                modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(bottom = 88.dp),
-            ) {
-                items(playlists, key = { it.id }) { playlist ->
-                    PlaylistRow(
-                        playlist = playlist,
-                        onClick = { onPlaylistClick(playlist.id) },
-                        onRename = { onRenameRequest(playlist) },
-                        onDelete = { onDelete(playlist.id) },
+                .aspectRatio(1f)
+                .clip(CircleShape)
+                .clickable(onClick = onClick),
+            labelContent = {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(
+                        text = "${playlist.songCount}",
+                        style = MaterialTheme.typography.headlineSmall,
+                        color = SillonOnAccent,
                     )
-                    HorizontalDivider(
-                        modifier = Modifier.padding(horizontal = 16.dp),
-                        color = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f),
+                    Text(
+                        text = if (playlist.songCount == 1) "track" else "tracks",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = SillonOnAccent,
                     )
                 }
-            }
+            },
+        )
+        Spacer(Modifier.height(8.dp))
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                text = playlist.name,
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onBackground,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f, fill = false),
+            )
+            RoundIconButton(
+                icon = Icons.Outlined.MoreHoriz,
+                contentDescription = "Playlist options",
+                onClick = onOptions,
+                size = 32.dp,
+                containerColor = MaterialTheme.colorScheme.background,
+                contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
         }
     }
 }
 
 @Composable
-private fun PlaylistRow(
-    playlist: Playlist,
-    onClick: () -> Unit,
-    onRename: () -> Unit,
-    onDelete: () -> Unit,
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick)
-            .padding(start = 16.dp, end = 4.dp, top = 12.dp, bottom = 12.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
+private fun NewPlaylistTile(onClick: () -> Unit) {
+    val stroke = MaterialTheme.colorScheme.outline
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Icon(
-            Icons.Outlined.PlaylistPlay,
-            contentDescription = null,
-            tint = MaterialTheme.colorScheme.primary,
-            modifier = Modifier.size(40.dp),
-        )
-        Column(
+        Box(
             modifier = Modifier
-                .weight(1f)
-                .padding(end = 4.dp),
+                .fillMaxWidth()
+                .aspectRatio(1f)
+                .clip(CircleShape)
+                .clickable(onClick = onClick)
+                .drawBehind {
+                    val w = 2.dp.toPx()
+                    drawCircle(
+                        color = stroke,
+                        radius = size.minDimension / 2f - w,
+                        style = Stroke(width = w, pathEffect = PathEffect.dashPathEffect(floatArrayOf(14f, 12f))),
+                    )
+                },
+            contentAlignment = Alignment.Center,
         ) {
-            Text(
-                text = playlist.name,
-                style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.onSurface,
-            )
-            Text(
-                text = "${playlist.songCount} TRACK${if (playlist.songCount > 1) "S" else ""}".uppercase(),
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            Icon(
+                Icons.Outlined.Add,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(36.dp),
             )
         }
-        IconButton(onClick = onRename) {
-            Icon(Icons.Outlined.Edit, contentDescription = "Rename",
-                tint = MaterialTheme.colorScheme.onSurfaceVariant)
+        Spacer(Modifier.height(8.dp))
+        Text(
+            text = "New playlist",
+            style = MaterialTheme.typography.titleMedium,
+            color = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.padding(vertical = 6.dp),
+        )
+    }
+}
+
+// ─── Swipe-to-remove song row ─────────────────────────────────────────────────
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun SwipeableSongRow(
+    song: Song,
+    onSongClick: (Song) -> Unit,
+    onRemove: (Song) -> Unit,
+) {
+    val dismissState = rememberSwipeToDismissBoxState(
+        confirmValueChange = { value ->
+            if (value == SwipeToDismissBoxValue.EndToStart) {
+                onRemove(song)
+                true
+            } else false
         }
-        IconButton(onClick = onDelete) {
-            Icon(Icons.Outlined.Delete, contentDescription = "Delete",
-                tint = MaterialTheme.colorScheme.error)
-        }
+    )
+    SwipeToDismissBox(
+        state = dismissState,
+        backgroundContent = {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 16.dp, vertical = 4.dp)
+                    .clip(PillShape)
+                    .background(MaterialTheme.colorScheme.error)
+                    .padding(horizontal = 22.dp),
+                contentAlignment = Alignment.CenterEnd,
+            ) {
+                Icon(Icons.Outlined.Delete, contentDescription = null, tint = SillonOnAccent)
+            }
+        },
+        enableDismissFromStartToEnd = false,
+    ) {
+        SongRow(song = song, onClick = onSongClick)
     }
 }
 
 // ─── Favorites Tab ────────────────────────────────────────────────────────────
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun FavoritesTab(
     favorites: List<Song>,
@@ -347,41 +401,13 @@ private fun FavoritesTab(
         LibrarySearchField(query, onQueryChange)
         if (favorites.isEmpty()) {
             EmptyState(
-                if (query.isBlank()) "No favorites yet\nTap the heart in the player"
+                if (query.isBlank()) "No favorites yet\nTap Like in the player"
                 else "No favorites match \"$query\""
             )
         } else {
-            LazyColumn(modifier = Modifier.fillMaxSize()) {
+            LazyColumn(modifier = Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 12.dp)) {
                 items(favorites, key = { it.id }) { song ->
-                    val dismissState = rememberSwipeToDismissBoxState(
-                        confirmValueChange = { value ->
-                            if (value == SwipeToDismissBoxValue.EndToStart) {
-                                onRemove(song)
-                                true
-                            } else false
-                        }
-                    )
-                    SwipeToDismissBox(
-                        state = dismissState,
-                        backgroundContent = {
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .padding(horizontal = 20.dp),
-                                contentAlignment = Alignment.CenterEnd,
-                            ) {
-                                Icon(Icons.Outlined.Delete, contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.error)
-                            }
-                        },
-                        enableDismissFromStartToEnd = false,
-                    ) {
-                        SongRow(song = song, onClick = onSongClick)
-                    }
-                    HorizontalDivider(
-                        modifier = Modifier.padding(horizontal = 16.dp),
-                        color = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f),
-                    )
+                    SwipeableSongRow(song, onSongClick, onRemove)
                 }
             }
         }
@@ -402,16 +428,18 @@ private fun HistoryTab(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(start = 16.dp, end = 8.dp, top = 4.dp),
+                .padding(end = 16.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             LibrarySearchField(query, onQueryChange, modifier = Modifier.weight(1f))
-            TextButton(onClick = onClearAll) {
-                Icon(Icons.Outlined.Delete, contentDescription = null,
-                    modifier = Modifier.size(16.dp))
-                Spacer(Modifier.size(4.dp))
-                Text("Clear all")
-            }
+            RoundIconButton(
+                icon = Icons.Outlined.DeleteSweep,
+                contentDescription = "Clear history",
+                onClick = onClearAll,
+                size = 48.dp,
+                containerColor = MaterialTheme.colorScheme.surface,
+                contentColor = MaterialTheme.colorScheme.error,
+            )
         }
         if (history.isEmpty()) {
             EmptyState(
@@ -419,14 +447,10 @@ private fun HistoryTab(
                 else "No history matches \"$query\""
             )
         } else {
-            LazyColumn(modifier = Modifier.fillMaxSize()) {
+            LazyColumn(modifier = Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 12.dp)) {
                 // v0.9.1 fix: removed key={it.id} to allow duplicates in full history without crash
                 items(history) { song ->
                     SongRow(song = song, onClick = onSongClick)
-                    HorizontalDivider(
-                        modifier = Modifier.padding(horizontal = 16.dp),
-                        color = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f),
-                    )
                 }
             }
         }
@@ -441,22 +465,13 @@ private fun LibrarySearchField(
     onQueryChange: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    OutlinedTextField(
+    PillTextField(
         value = query,
         onValueChange = onQueryChange,
-        placeholder = { Text("Search title or artist") },
-        leadingIcon = { Icon(Icons.Outlined.Search, contentDescription = null) },
-        trailingIcon = {
-            if (query.isNotEmpty()) {
-                IconButton(onClick = { onQueryChange("") }) {
-                    Icon(Icons.Outlined.Close, contentDescription = "Clear")
-                }
-            }
-        },
-        singleLine = true,
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 8.dp),
+        placeholder = "Search title or artist",
+        leadingIcon = Icons.Outlined.Search,
+        onClear = { onQueryChange("") },
+        modifier = modifier.padding(horizontal = 16.dp, vertical = 8.dp),
     )
 }
 
@@ -471,37 +486,9 @@ private fun DownloadsTab(
     if (downloaded.isEmpty()) {
         EmptyState("No downloads yet\nOffline music will appear here")
     } else {
-        LazyColumn(modifier = Modifier.fillMaxSize()) {
+        LazyColumn(modifier = Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 12.dp)) {
             items(downloaded, key = { it.id }) { song ->
-                val dismissState = rememberSwipeToDismissBoxState(
-                    confirmValueChange = { value ->
-                        if (value == SwipeToDismissBoxValue.EndToStart) {
-                            onRemove(song)
-                            true
-                        } else false
-                    }
-                )
-                SwipeToDismissBox(
-                    state = dismissState,
-                    backgroundContent = {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .padding(horizontal = 20.dp),
-                            contentAlignment = Alignment.CenterEnd,
-                        ) {
-                            Icon(Icons.Outlined.Delete, contentDescription = null,
-                                tint = MaterialTheme.colorScheme.error)
-                        }
-                    },
-                    enableDismissFromStartToEnd = false,
-                ) {
-                    SongRow(song = song, onClick = onSongClick)
-                }
-                HorizontalDivider(
-                    modifier = Modifier.padding(horizontal = 16.dp),
-                    color = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f),
-                )
+                SwipeableSongRow(song, onSongClick, onRemove)
             }
         }
     }
@@ -511,11 +498,18 @@ private fun DownloadsTab(
 
 @Composable
 private fun EmptyState(text: String) {
-    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+    Column(
+        modifier = Modifier.fillMaxSize().padding(32.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center,
+    ) {
+        VinylDisc(artworkUrl = null, labelKey = text, modifier = Modifier.size(110.dp))
+        Spacer(Modifier.height(16.dp))
         Text(
             text = text,
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = TextAlign.Center,
         )
     }
 }

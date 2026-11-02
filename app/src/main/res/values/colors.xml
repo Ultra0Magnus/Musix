@@ -1,5 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="musix_black">#FF000000</color>
-    <color name="musix_accent">#FF1DB954</color>
+    <!-- Palette Sillon (miroir de ui/theme/Color.kt) pour les ressources natives : fenêtre de démarrage, icône. -->
+    <color name="sillon_background">#FF2A1512</color>
+    <color name="sillon_groove">#FF170A08</color>
+    <color name="sillon_accent">#FFE9A727</color>
 </resources>

@@ -3,9 +3,12 @@ package com.louis.musix.ui.screens.spotify
 import android.provider.OpenableColumns
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -13,39 +16,34 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.ArrowBackIosNew
-import androidx.compose.material.icons.outlined.CheckCircle
-import androidx.compose.material.icons.outlined.CloudSync
-import androidx.compose.material.icons.outlined.Error
+import androidx.compose.material.icons.outlined.Check
+import androidx.compose.material.icons.outlined.ErrorOutline
 import androidx.compose.material.icons.outlined.FolderOpen
-import androidx.compose.material3.Button
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material.icons.outlined.Link
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.louis.musix.ui.components.inkButtonColors
+import com.louis.musix.ui.components.PageHeader
+import com.louis.musix.ui.components.PillButton
+import com.louis.musix.ui.components.ProgressRing
+import com.louis.musix.ui.components.ScreenTitle
+import com.louis.musix.ui.components.VinylDisc
+import com.louis.musix.ui.theme.CardShape
+import com.louis.musix.ui.theme.PillShape
 import org.koin.androidx.compose.koinViewModel
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SpotifyImportScreen(onBack: () -> Unit) {
     val viewModel: SpotifyImportViewModel = koinViewModel()
@@ -72,23 +70,12 @@ fun SpotifyImportScreen(onBack: () -> Unit) {
         if (files.isNotEmpty()) viewModel.importFromJsonFiles(files)
     }
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text("Import from Spotify") },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.Outlined.ArrowBackIosNew, contentDescription = "Back")
-                    }
-                },
-            )
-        },
-    ) { innerPadding ->
+    Column(Modifier.fillMaxSize()) {
+        PageHeader(onBack = onBack, label = "Spotify")
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(innerPadding)
-                .padding(horizontal = 24.dp),
+                .padding(horizontal = 20.dp),
             contentAlignment = Alignment.Center,
         ) {
             when (val s = state) {
@@ -114,95 +101,140 @@ private fun IdleContent(
     onPickFiles: () -> Unit,
 ) {
     Column(
-        modifier = Modifier.verticalScroll(rememberScrollState()),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(16.dp),
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(bottom = 24.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
-        Icon(
-            imageVector        = Icons.Outlined.CloudSync,
-            contentDescription = null,
-            modifier           = Modifier.size(64.dp),
-            tint               = MaterialTheme.colorScheme.primary,
-        )
-
+        ScreenTitle("Import from Spotify")
         Text(
-            text      = "Import from Spotify",
-            style     = MaterialTheme.typography.headlineSmall,
-            textAlign = TextAlign.Center,
+            text = "Bring your playlists, liked tracks and listening history into Musix.",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
-
-        Spacer(Modifier.height(4.dp))
 
         // ── Option A: JSON files (recommended) ───────────────────────────────
-        Text(
-            text       = "Recommended option — GDPR Export",
-            style      = MaterialTheme.typography.labelLarge,
-            fontWeight = FontWeight.SemiBold,
-            color      = MaterialTheme.colorScheme.primary,
-            textAlign  = TextAlign.Center,
-        )
-
-        Text(
-            text = "Request your export at spotify.com/account/privacy " +
-                   "(email within 5 days). Extract the ZIP, then select:\n\n" +
-                   "• Streaming_History_Audio_*.json → creates a Top 50 all time + Top 20 by year\n" +
-                   "• YourLibrary.json → your liked tracks\n" +
-                   "• Playlist*.json → your playlists",
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            textAlign = TextAlign.Center,
-        )
-
-        Button(
-            onClick  = onPickFiles,
-            modifier = Modifier.fillMaxWidth(),
-            colors = inkButtonColors(),
+        OptionCard(
+            title = "Data export",
+            badge = "Recommended",
         ) {
-            Icon(
-                Icons.Outlined.FolderOpen,
-                contentDescription = null,
-                modifier = Modifier.size(18.dp),
+            Text(
+                text = "Request your export at spotify.com/account/privacy " +
+                       "(email within 5 days). Extract the ZIP, then select:",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-            Spacer(Modifier.size(8.dp))
-            Text("Select JSON files")
+            FileHint("Streaming_History_Audio_*.json", "Top 50 all time + Top 20 by year")
+            FileHint("YourLibrary.json", "your liked tracks")
+            FileHint("Playlist*.json", "your playlists")
+            PillButton(
+                text = "Select JSON files",
+                icon = Icons.Outlined.FolderOpen,
+                onClick = onPickFiles,
+                modifier = Modifier.fillMaxWidth(),
+            )
         }
-
-        Spacer(Modifier.height(4.dp))
-        HorizontalDivider()
-        Spacer(Modifier.height(4.dp))
 
         // ── Option B: OAuth API (Premium required) ────────────────────────────
-        Text(
-            text       = "Alternative option — Spotify API (Premium required)",
-            style      = MaterialTheme.typography.labelLarge,
-            fontWeight = FontWeight.SemiBold,
-            color      = MaterialTheme.colorScheme.onSurfaceVariant,
-            textAlign  = TextAlign.Center,
-        )
-
-        Text(
-            text = "Requires the app's developer account to have Spotify Premium.",
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            textAlign = TextAlign.Center,
-        )
-
-        if (viewModel.isConnected) {
-            OutlinedButton(
-                onClick  = viewModel::connectAndImport,
-                modifier = Modifier.fillMaxWidth(),
-            ) { Text("Start import (API)") }
-
-            TextButton(
-                onClick  = viewModel::disconnect,
-                modifier = Modifier.fillMaxWidth(),
-            ) { Text("Disconnect") }
-        } else {
-            OutlinedButton(
-                onClick  = viewModel::connectAndImport,
-                modifier = Modifier.fillMaxWidth(),
-            ) { Text("Connect Spotify (Premium)") }
+        OptionCard(title = "Account connection") {
+            Text(
+                text = "Uses the Spotify API. Requires the app's developer account to have Spotify Premium.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            if (viewModel.isConnected) {
+                PillButton(
+                    text = "Start import (API)",
+                    icon = Icons.Outlined.Link,
+                    outlined = true,
+                    onClick = viewModel::connectAndImport,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                PillButton(
+                    text = "Disconnect",
+                    outlined = true,
+                    onClick = viewModel::disconnect,
+                    modifier = Modifier.fillMaxWidth(),
+                    contentColor = MaterialTheme.colorScheme.error,
+                )
+            } else {
+                PillButton(
+                    text = "Connect Spotify (Premium)",
+                    icon = Icons.Outlined.Link,
+                    outlined = true,
+                    onClick = viewModel::connectAndImport,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
         }
+    }
+}
+
+@Composable
+private fun OptionCard(
+    title: String,
+    badge: String? = null,
+    content: @Composable ColumnScope.() -> Unit,
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(CardShape)
+            .background(MaterialTheme.colorScheme.surface)
+            .padding(20.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.headlineSmall,
+                color = MaterialTheme.colorScheme.onSurface,
+                modifier = Modifier.weight(1f),
+            )
+            if (badge != null) {
+                Text(
+                    text = badge,
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onPrimary,
+                    modifier = Modifier
+                        .clip(PillShape)
+                        .background(MaterialTheme.colorScheme.primary)
+                        .padding(horizontal = 10.dp, vertical = 4.dp),
+                )
+            }
+        }
+        content()
+    }
+}
+
+@Composable
+private fun FileHint(file: String, description: String) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(PillShape)
+            .background(MaterialTheme.colorScheme.surfaceVariant)
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+    ) {
+        Text(file, style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onSurface)
+        Text(description, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    }
+}
+
+/** Disque qui tourne, entouré d'un anneau de progression optionnel. */
+@Composable
+private fun SpinningRecord(progress: Float? = null) {
+    Box(Modifier.size(150.dp), contentAlignment = Alignment.Center) {
+        if (progress != null) {
+            ProgressRing(progress = progress, modifier = Modifier.size(150.dp), strokeWidth = 5.dp)
+        }
+        VinylDisc(
+            artworkUrl = null,
+            labelKey = "spotify",
+            spinning = true,
+            modifier = Modifier.size(134.dp),
+        )
     }
 }
 
@@ -214,15 +246,15 @@ private fun WaitingAuthContent(viewModel: SpotifyImportViewModel) {
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
-        CircularProgressIndicator(modifier = Modifier.size(56.dp))
-        Text("Waiting for Spotify...", style = MaterialTheme.typography.titleMedium)
+        SpinningRecord()
+        Text("Waiting for Spotify…", style = MaterialTheme.typography.headlineSmall)
         Text(
             text  = "Authorize access in your browser\nthen come back to the app.",
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center,
         )
-        TextButton(onClick = viewModel::retry) { Text("Cancel") }
+        PillButton(text = "Cancel", outlined = true, onClick = viewModel::retry)
     }
 }
 
@@ -234,8 +266,8 @@ private fun ExchangingContent() {
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
-        CircularProgressIndicator(modifier = Modifier.size(56.dp))
-        Text("Connecting...", style = MaterialTheme.typography.titleMedium)
+        SpinningRecord()
+        Text("Connecting…", style = MaterialTheme.typography.headlineSmall)
     }
 }
 
@@ -249,8 +281,8 @@ private fun ImportingContent(state: ImportState.Importing, viewModel: SpotifyImp
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        CircularProgressIndicator(modifier = Modifier.size(56.dp))
-        Text("Importing...", style = MaterialTheme.typography.titleMedium)
+        SpinningRecord(progress = if (state.total > 0) progress else null)
+        Text("Importing…", style = MaterialTheme.typography.headlineSmall)
         Text(
             text  = state.phase,
             style = MaterialTheme.typography.bodyMedium,
@@ -258,21 +290,20 @@ private fun ImportingContent(state: ImportState.Importing, viewModel: SpotifyImp
             textAlign = TextAlign.Center,
         )
         if (state.total > 0) {
-            LinearProgressIndicator(progress = { progress }, modifier = Modifier.fillMaxWidth())
             Text(
                 text  = "${state.current} / ${state.total}",
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.primary,
             )
         }
-        Spacer(Modifier.height(4.dp))
         Text(
             text  = "Import may take a few minutes.",
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center,
         )
-        TextButton(onClick = viewModel::cancelImport) { Text("Cancel") }
+        Spacer(Modifier.height(4.dp))
+        PillButton(text = "Cancel", outlined = true, onClick = viewModel::cancelImport)
     }
 }
 
@@ -284,13 +315,21 @@ private fun DoneContent(state: ImportState.Done, onBack: () -> Unit) {
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
-        Icon(
-            imageVector        = Icons.Outlined.CheckCircle,
-            contentDescription = null,
-            modifier           = Modifier.size(72.dp),
-            tint               = MaterialTheme.colorScheme.primary,
-        )
-        Text("Import complete!", style = MaterialTheme.typography.headlineSmall)
+        Box(
+            modifier = Modifier
+                .size(96.dp)
+                .clip(CircleShape)
+                .background(MaterialTheme.colorScheme.primary),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(
+                Icons.Outlined.Check,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onPrimary,
+                modifier = Modifier.size(48.dp),
+            )
+        }
+        Text("Import complete!", style = MaterialTheme.typography.displaySmall)
 
         val t = state.tracksImported
         val p = state.playlistsCreated
@@ -302,9 +341,7 @@ private fun DoneContent(state: ImportState.Done, onBack: () -> Unit) {
             textAlign = TextAlign.Center,
         )
         Spacer(Modifier.height(8.dp))
-        Button(onClick = onBack, modifier = Modifier.fillMaxWidth(), colors = inkButtonColors()) {
-            Text("Go to library")
-        }
+        PillButton(text = "Go to library", onClick = onBack, modifier = Modifier.fillMaxWidth())
     }
 }
 
@@ -317,15 +354,15 @@ private fun ErrorContent(state: ImportState.Error, viewModel: SpotifyImportViewM
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         Icon(
-            imageVector        = Icons.Outlined.Error,
+            imageVector        = Icons.Outlined.ErrorOutline,
             contentDescription = null,
             modifier           = Modifier.size(64.dp),
             tint               = MaterialTheme.colorScheme.error,
         )
         Text(
             text      = "Something went wrong",
-            style     = MaterialTheme.typography.titleLarge,
-            color     = MaterialTheme.colorScheme.error,
+            style     = MaterialTheme.typography.headlineSmall,
+            color     = MaterialTheme.colorScheme.onBackground,
             textAlign = TextAlign.Center,
         )
         Text(
@@ -335,8 +372,6 @@ private fun ErrorContent(state: ImportState.Error, viewModel: SpotifyImportViewM
             textAlign = TextAlign.Center,
         )
         Spacer(Modifier.height(8.dp))
-        Button(onClick = viewModel::retry, modifier = Modifier.fillMaxWidth(), colors = inkButtonColors()) {
-            Text("Retry")
-        }
+        PillButton(text = "Retry", onClick = viewModel::retry, modifier = Modifier.fillMaxWidth())
     }
 }

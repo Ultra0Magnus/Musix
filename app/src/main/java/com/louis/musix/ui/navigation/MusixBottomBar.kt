@@ -1,25 +1,30 @@
 package com.louis.musix.ui.navigation
 
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
+import com.louis.musix.ui.theme.PillShape
 
 /**
- * Barre d'onglets « Affiche » : onglets texte majuscules, sans indicateur pilule.
- * L'onglet actif reçoit un court soulignement vert centré ; angles droits.
+ * Barre d'onglets « Sillon » : pilule flottante (surface) contenant trois pilules
+ * icône + libellé ; l'onglet actif est plein moutarde, texte sombre.
  */
 @Composable
 fun MusixBottomBar(
@@ -29,43 +34,34 @@ fun MusixBottomBar(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .background(MaterialTheme.colorScheme.background),
+            .padding(start = 12.dp, end = 12.dp, top = 8.dp, bottom = 12.dp)
+            .clip(PillShape)
+            .background(MaterialTheme.colorScheme.surface)
+            .padding(6.dp),
         verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
     ) {
         bottomNavItems.forEach { item ->
             val selected = currentRoute == item.route
-            val accent = MaterialTheme.colorScheme.primary
-            Box(
+            val container by animateColorAsState(
+                if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surface,
+                label = "tab_bg",
+            )
+            val content = if (selected) MaterialTheme.colorScheme.onPrimary
+                          else MaterialTheme.colorScheme.onSurfaceVariant
+            Row(
                 modifier = Modifier
                     .weight(1f)
-                    .clickable { if (!selected) onNavigate(item.route) }
-                    .padding(top = 13.dp, bottom = 24.dp),
-                contentAlignment = Alignment.TopCenter,
+                    .height(48.dp)
+                    .clip(PillShape)
+                    .background(container)
+                    .clickable { if (!selected) onNavigate(item.route) },
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.Center,
             ) {
-                Text(
-                    text = item.label.uppercase(),
-                    style = MaterialTheme.typography.labelLarge,
-                    textAlign = TextAlign.Center,
-                    color = if (selected)
-                        MaterialTheme.colorScheme.onSurface
-                    else
-                        MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = if (selected) {
-                        Modifier
-                            .fillMaxWidth()
-                            .drawBehind {
-                                val barW = 24.dp.toPx()
-                                val barH = 2.dp.toPx()
-                                drawRect(
-                                    color = accent,
-                                    topLeft = Offset((size.width - barW) / 2f, size.height + 6.dp.toPx()),
-                                    size = Size(barW, barH),
-                                )
-                            }
-                    } else {
-                        Modifier.fillMaxWidth()
-                    },
-                )
+                Icon(item.icon, contentDescription = null, tint = content, modifier = Modifier.size(20.dp))
+                Spacer(Modifier.width(6.dp))
+                Text(item.label, style = MaterialTheme.typography.labelLarge, color = content)
             }
         }
     }
