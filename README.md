@@ -1,8 +1,8 @@
 # Musix
 
-Personal Android music streaming app powered by YouTube (NewPipeExtractor). Distributed as a sideloaded APK — no Play Store.
+Personal Android music streaming app powered by YouTube (NewPipeExtractor). Distributed as a sideloaded APK - no Play Store.
 
-**Current version: v1.1.0** — « Sillon » redesign: vinyl look, round shapes, oxblood / cream / mustard palette, new app icon
+**Current version: v1.1.0** - « Sillon » redesign: vinyl look, round shapes, oxblood / cream / mustard palette, new app icon
 
 ---
 
@@ -41,7 +41,7 @@ Personal Android music streaming app powered by YouTube (NewPipeExtractor). Dist
 - **Search**: filter favorites and history by title or artist
 - **Downloads**: full offline support with swipe-to-delete
 
-### Design — « Sillon » (v1.1.0)
+### Design - « Sillon » (v1.1.0)
 - Vinyl look: every artwork becomes the label of a record that **spins while playing**
 - Everything round: pill rows, pill tabs, round controls, rounded cards and sheets
 - Oxblood / cream / mustard palette, **Fraunces** (titles) + **Figtree** (body)
@@ -123,7 +123,7 @@ com.louis.musix
 │
 ├── data/
 │   ├── newpipe/                YouTubeRepository (search, audio URL, artist, albums)
-│   ├── lyrics/                 LyricsRepository (LRCLIB — synced + plain lyrics)
+│   ├── lyrics/                 LyricsRepository (LRCLIB - synced + plain lyrics)
 │   ├── local/                  Room: MusixDatabase, DAOs (song, favorite, history, playlist)
 │   ├── download/               DownloadManager (Background downloading + file management)
 │   ├── repo/                   LibraryRepository (favorites, history, playlists, downloads)
@@ -155,22 +155,22 @@ com.louis.musix
 
 ## Roadmap
 
-- ✅ **Phase 1** — Navigable skeleton (dark theme, navigation, BottomBar)
-- ✅ **Phase 2** — YouTube search (NewPipeExtractor)
-- ✅ **Phase 3** — Audio playback (PlayerScreen, SelectedSongHolder)
-- ✅ **Phase 4** — Background service + notification + MiniPlayer (Media3)
-- ✅ **Phase 5** — Room library (favorites, history, playlists)
-- ✅ **Phase 6** — HomeScreen, skeletons, artwork gradient, animated MiniPlayer
-- ✅ **Phase 7** — Spotify import (OAuth2 PKCE, YouTube matching)
-- ✅ **Phase 8** — Auto-queue, auto-advance, Artist & Album pages
-- ✅ **Phase 9** — Shuffle, Repeat, editable queue, synced lyrics (LRCLIB)
-- ✅ **Phase 10** — Paginated search ("Load more"), Search history, clear button
-- ✅ **Phase 12** — Offline Mode (v0.9.1): Download tracks, Local playback, Storage management
-- ✅ **Phase 13** — Data Saving (v0.9.2): ExoPlayer SimpleCache integration, Auto-eviction (300 MB max)
-- ✅ **Phase 14** — Robustness: Network monitoring, Auto-skip on stream error
-- ✅ **Phase 15 (v1.0.0)** — Sleep timer, Playlist rename & drag-to-reorder, Library search, real system audio focus, cleaned-up Settings, signed release build, unit tests
-- 🚀 **v1.0.0** — Official Release
-- ✅ **v1.1.0** — « Sillon » redesign of every screen + new « Vinyle » app icon
+- ✅ **Phase 1** - Navigable skeleton (dark theme, navigation, BottomBar)
+- ✅ **Phase 2** - YouTube search (NewPipeExtractor)
+- ✅ **Phase 3** - Audio playback (PlayerScreen, SelectedSongHolder)
+- ✅ **Phase 4** - Background service + notification + MiniPlayer (Media3)
+- ✅ **Phase 5** - Room library (favorites, history, playlists)
+- ✅ **Phase 6** - HomeScreen, skeletons, artwork gradient, animated MiniPlayer
+- ✅ **Phase 7** - Spotify import (OAuth2 PKCE, YouTube matching)
+- ✅ **Phase 8** - Auto-queue, auto-advance, Artist & Album pages
+- ✅ **Phase 9** - Shuffle, Repeat, editable queue, synced lyrics (LRCLIB)
+- ✅ **Phase 10** - Paginated search ("Load more"), Search history, clear button
+- ✅ **Phase 12** - Offline Mode (v0.9.1): Download tracks, Local playback, Storage management
+- ✅ **Phase 13** - Data Saving (v0.9.2): ExoPlayer SimpleCache integration, Auto-eviction (300 MB max)
+- ✅ **Phase 14** - Robustness: Network monitoring, Auto-skip on stream error
+- ✅ **Phase 15 (v1.0.0)** - Sleep timer, Playlist rename & drag-to-reorder, Library search, real system audio focus, cleaned-up Settings, signed release build, unit tests
+- 🚀 **v1.0.0** - Official Release
+- ✅ **v1.1.0** - « Sillon » redesign of every screen + new « Vinyle » app icon
 
 ### Post-1.0 ideas
 - 🔄 Android Auto support
@@ -181,4 +181,4 @@ com.louis.musix
 
 ## License
 
-MIT — personal use only. NewPipeExtractor is subject to its own GPL-3.0 license.
+MIT - personal use only. NewPipeExtractor is subject to its own GPL-3.0 license.
