@@ -133,9 +133,6 @@ dependencies {
     // Coil pour les images
     implementation(libs.coil.compose)
 
-    // Palette (extraction couleur dominante artwork)
-    implementation(libs.androidx.palette)
-
     // Room (DB locale)
     implementation(libs.room.runtime)
     implementation(libs.room.ktx)

@@ -28,9 +28,6 @@ coil                 = "2.7.0"
 # Room
 room                 = "2.6.1"
 
-# Palette (extraction couleur dominante artwork)
-palette              = "1.0.0"
-
 # Reorderable (drag & drop in LazyColumn)
 reorderable          = "2.4.0"
 
@@ -81,9 +78,6 @@ coil-compose                 = { module = "io.coil-kt:coil-compose", version.ref
 room-runtime                 = { module = "androidx.room:room-runtime", version.ref = "room" }
 room-ktx                     = { module = "androidx.room:room-ktx", version.ref = "room" }
 room-compiler                = { module = "androidx.room:room-compiler", version.ref = "room" }
-
-# Palette
-androidx-palette             = { module = "androidx.palette:palette-ktx", version.ref = "palette" }
 
 # Reorderable
 reorderable                  = { module = "sh.calvin.reorderable:reorderable", version.ref = "reorderable" }
