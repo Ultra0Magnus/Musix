@@ -11,7 +11,7 @@ Personal Android music streaming app powered by YouTube (NewPipeExtractor). Dist
 ### Playback
 - YouTube audio streaming (audio-only, no video)
 - **Background playback** with a persistent control notification (Media3 / MediaSession)
-- **Mini-player** anchored at the bottom of the screen (animated slide-in)
+- **Mini-player**: floating cream pill above the tab bar, with a spinning record and a progress ring
 - **Auto-queue**: after a track ends, similar songs by the same artist are loaded automatically
 - **Shuffle**: randomises the queue while keeping the current track at the front
 - **Repeat**: three modes (Off → All → One)
@@ -26,6 +26,7 @@ Personal Android music streaming app powered by YouTube (NewPipeExtractor). Dist
 ### Search
 - YouTube search via NewPipeExtractor
 - **Paginated results**: "Load more" button for endless scrolling
+- **Recent searches** shown as tappable pills
 - Per-track options: favorites, **add to queue**, add to playlist
 - Tap an artist name → Artist page
 
@@ -37,7 +38,7 @@ Personal Android music streaming app powered by YouTube (NewPipeExtractor). Dist
 ### Library (Room / SQLite)
 - **Favorites**: add/remove from any screen
 - **Listening history**: with duplicate filtering
-- **Playlists**: create, rename, delete, add/remove tracks, **drag-to-reorder**
+- **Playlists**: record grid; create, rename, delete (« ⋯ » menu), add/remove tracks, **drag-to-reorder**, Play all / Shuffle
 - **Search**: filter favorites and history by title or artist
 - **Downloads**: full offline support with swipe-to-delete
 
@@ -53,9 +54,18 @@ Personal Android music streaming app powered by YouTube (NewPipeExtractor). Dist
 - **Top 50 Suggestions**: smart recommendations based on your Spotify all-time top tracks
 
 ### Spotify Import
-- OAuth2 PKCE connection
-- Import Spotify playlists → Musix playlists (automatic YouTube matching)
-- GDPR JSON export support (Streaming history, YourLibrary, Playlist files)
+- **GDPR JSON export** (recommended): Streaming history → Top 50 all time + Top 20 by year, YourLibrary → liked tracks, Playlist files → playlists
+- **Account connection** (OAuth2 PKCE): requires a Spotify client ID (see *Development setup*) and a Premium developer account
+- Imported tracks are matched automatically on YouTube
+
+### Offline & cache
+- Offline banner when the network drops; downloaded music stays playable
+- Stream cache (ExoPlayer SimpleCache, LRU eviction, 300 MB max)
+
+### Settings
+- Spotify status, import and disconnect
+- Stream cache size and « Clear cache »
+- App version and open-source licenses
 
 ### Player Screen
 - **Spinning record** inside a progress ring, round prev / play / next controls
@@ -82,13 +92,31 @@ Personal Android music streaming app powered by YouTube (NewPipeExtractor). Dist
 
 ### Prerequisites
 - **Android Studio** (stable channel): https://developer.android.com/studio
-- Android SDK API 26+ (downloaded automatically on first Gradle sync)
+- JDK 17 (bundled with Android Studio)
+- Android SDK: compile/target SDK 35, min SDK 26 (downloaded automatically on first Gradle sync)
+
+### Local configuration
+Copy `local.properties.example` → `local.properties` (git-ignored) and set your Spotify client ID
+(from https://developer.spotify.com/dashboard):
+
+```
+spotify.client.id=YOUR_CLIENT_ID
+```
+
+Without it the app still builds, but Spotify account connection is unavailable (the JSON export
+import still works). A `-Pspotify.client.id=…` Gradle argument overrides the file.
 
 ### Running the project
 1. *File* → *Open* → select the `Musix` folder
 2. Wait for the **Gradle sync** (5–15 min on first run)
 3. Select your device or AVD in the toolbar
 4. ▶ *Run 'app'* (`Shift+F10`)
+
+### Tests
+```
+./gradlew :app:testDebugUnitTest
+```
+Unit tests cover the LRC lyrics parser and YouTube URL handling.
 
 ### Troubleshooting
 - **Gradle sync fails**: *File* → *Invalidate Caches* → *Invalidate and Restart*
@@ -109,7 +137,9 @@ The release build is signed with a dedicated keystore. Secrets live in `keystore
 4. Build: *Build* → *Generate Signed Bundle / APK*, or assemble the `release` variant.
 
 If `keystore.properties` is absent, the release build falls back to the debug key so the
-project still compiles on a fresh clone.
+project still compiles on a fresh clone. The debug key differs from one machine to another,
+and Android refuses to update an app signed with a different key: always sign published
+releases with the same release keystore so users can update without reinstalling.
 
 ---
 
@@ -118,28 +148,31 @@ project still compiles on a fresh clone.
 ```
 com.louis.musix
 ├── MusixApp.kt                 Application: Koin + NewPipe initialisation
-├── MainActivity.kt             Compose host: Scaffold + NavHost + BottomBar
+├── MainActivity.kt             Compose host: Scaffold + NavHost + MiniPlayer + floating tab bar
 ├── di/AppModule.kt             Koin module (all singletons and ViewModels)
 │
 ├── data/
-│   ├── newpipe/                YouTubeRepository (search, audio URL, artist, albums)
+│   ├── newpipe/                YouTubeRepository (search, audio URL, artist, albums) + NewPipeDownloader
 │   ├── lyrics/                 LyricsRepository (LRCLIB - synced + plain lyrics)
-│   ├── local/                  Room: MusixDatabase, DAOs (song, favorite, history, playlist)
+│   ├── local/                  Room: MusixDatabase, dao/ + entity/ (song, favorite, history, playlist)
 │   ├── download/               DownloadManager (Background downloading + file management)
 │   ├── repo/                   LibraryRepository (favorites, history, playlists, downloads)
 │   ├── spotify/                SpotifyAuthManager + SpotifyRepository (OAuth2 PKCE)
 │   └── SelectedSongHolder.kt   Song handoff to PlayerScreen (navigation)
 │
-├── domain/model/               Song, LyricLine, ArtistAlbum, Playlist, …
+├── domain/
+│   ├── model/                  Song, LyricLine, ArtistAlbum, Playlist
+│   └── util/                   NetworkMonitor (online / offline state)
 │
 ├── player/
 │   ├── MusixPlayerService.kt   MediaSessionService (background playback + notification)
-│   ├── PlayerController.kt     Queue, shuffle, repeat, auto-advance
-│   └── RepeatMode.kt           Enum: OFF / ALL / ONE
+│   ├── PlayerController.kt     Queue, shuffle, repeat, auto-advance, sleep timer
+│   ├── RepeatMode.kt           Enum: OFF / ALL / ONE
+│   └── cache/CacheManager.kt   ExoPlayer SimpleCache (300 MB, LRU)
 │
 └── ui/
     ├── theme/                  Sillon palette, Fraunces/Figtree type, round shapes (forced dark)
-    ├── navigation/             Routes, NavHost, BottomBar
+    ├── navigation/             Routes, NavHost, MusixBottomBar
     ├── components/             VinylDisc, SongRow, MiniPlayer, pills, sheets, …
     └── screens/
         ├── home/               HomeScreen + HomeViewModel
@@ -148,6 +181,7 @@ com.louis.musix
         ├── library/            LibraryScreen + LibraryViewModel
         ├── artist/             ArtistScreen, AlbumDetailScreen + ViewModels
         ├── playlist/           PlaylistDetailScreen + ViewModel
+        ├── settings/           SettingsScreen + ViewModel, LicensesScreen
         └── spotify/            SpotifyImportScreen + ViewModel
 ```
 
