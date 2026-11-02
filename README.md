@@ -2,7 +2,7 @@
 
 Personal Android music streaming app powered by YouTube (NewPipeExtractor). Distributed as a sideloaded APK — no Play Store.
 
-**Current version: v1.0.0** — Sleep timer / Playlist rename & reorder / Library search / Real audio focus / Signed release
+**Current version: v1.1.0** — « Sillon » redesign: vinyl look, round shapes, oxblood / cream / mustard palette, new app icon
 
 ---
 
@@ -41,9 +41,15 @@ Personal Android music streaming app powered by YouTube (NewPipeExtractor). Dist
 - **Search**: filter favorites and history by title or artist
 - **Downloads**: full offline support with swipe-to-delete
 
+### Design — « Sillon » (v1.1.0)
+- Vinyl look: every artwork becomes the label of a record that **spins while playing**
+- Everything round: pill rows, pill tabs, round controls, rounded cards and sheets
+- Oxblood / cream / mustard palette, **Fraunces** (titles) + **Figtree** (body)
+- Adaptive **Vinyle** app icon with a monochrome layer for Android 13+ themed icons
+
 ### Home
-- "Continue Listening" carousel (recent history)
-- "Your Favorites" carousel
+- "Jump back in" card (last played track)
+- "Recently played" and "Favorites" record shelves
 - **Top 50 Suggestions**: smart recommendations based on your Spotify all-time top tracks
 
 ### Spotify Import
@@ -52,7 +58,9 @@ Personal Android music streaming app powered by YouTube (NewPipeExtractor). Dist
 - GDPR JSON export support (Streaming history, YourLibrary, Playlist files)
 
 ### Player Screen
-- **Color gradient** extracted from the artwork via Palette (animated transition)
+- **Spinning record** inside a progress ring, round prev / play / next controls
+- Chip row: Shuffle, Repeat, Like, Download, Sleep (with live countdown)
+- **Lyrics preview card** showing the previous / current / next synced lines
 - **Sleep timer**: 15/30/45/60 min or end-of-track, with a live countdown
 - Tap the artist name → Artist page
 - "Queue" bottom sheet: view and remove tracks
@@ -130,9 +138,9 @@ com.louis.musix
 │   └── RepeatMode.kt           Enum: OFF / ALL / ONE
 │
 └── ui/
-    ├── theme/                  Color palette + forced dark theme
+    ├── theme/                  Sillon palette, Fraunces/Figtree type, round shapes (forced dark)
     ├── navigation/             Routes, NavHost, BottomBar
-    ├── components/             SongRow, SongCard, ShimmerBox, MiniPlayer, …
+    ├── components/             VinylDisc, SongRow, MiniPlayer, pills, sheets, …
     └── screens/
         ├── home/               HomeScreen + HomeViewModel
         ├── search/             SearchScreen + SearchViewModel
@@ -162,6 +170,7 @@ com.louis.musix
 - ✅ **Phase 14** — Robustness: Network monitoring, Auto-skip on stream error
 - ✅ **Phase 15 (v1.0.0)** — Sleep timer, Playlist rename & drag-to-reorder, Library search, real system audio focus, cleaned-up Settings, signed release build, unit tests
 - 🚀 **v1.0.0** — Official Release
+- ✅ **v1.1.0** — « Sillon » redesign of every screen + new « Vinyle » app icon
 
 ### Post-1.0 ideas
 - 🔄 Android Auto support
