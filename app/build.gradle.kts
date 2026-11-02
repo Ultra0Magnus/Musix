@@ -20,6 +20,18 @@ val keystoreProps = Properties().apply {
 }
 val hasReleaseKeystore = keystorePropsFile.exists()
 
+// ── Spotify client ID ──────────────────────────────────────────────────────────
+// Read from local.properties (git-ignored), overridable with -Pspotify.client.id=…
+// Gradle does not expose local.properties as project properties, so load it here.
+val localProps = Properties().apply {
+    val f = rootProject.file("local.properties")
+    if (f.exists()) FileInputStream(f).use { load(it) }
+}
+val spotifyClientId: String =
+    (project.findProperty("spotify.client.id") as String?)
+        ?: localProps.getProperty("spotify.client.id")
+        ?: ""
+
 android {
     namespace = "com.louis.musix"
     compileSdk = 35
@@ -36,7 +48,7 @@ android {
         // CLIENT_ID Spotify injecté depuis local.properties (ne pas committer la valeur réelle)
         // Ajouter dans local.properties : spotify.client.id=50fa02008df5469fbdeb8407ec15ff80
         buildConfigField("String", "SPOTIFY_CLIENT_ID",
-            (project.findProperty("spotify.client.id") as String? ?: "").let { '"' + it + '"' }
+            "\"$spotifyClientId\""
         )
     }
 
